@@ -254,6 +254,22 @@ func filesWithSuffixRecursive(suffix []byte, delim byte, raw []byte, results []f
 	return results
 }
 
+func filesWithSuffix(suffix []byte, delim byte, raw []byte) (result []byte, endIndex int, wasFound bool) {
+	end := bytes.Index(raw, suffix)
+	if end < 0 {
+		return nil, 0, false
+	}
+
+	start := bytes.LastIndexByte(raw[:end], delim)
+	if start < 0 {
+		return nil, 0, false
+	}
+
+	end = end + len(suffix)
+
+	return raw[start+1:end], end,true
+}
+
 func newFileMeta(filePath string) fileMeta {
 	fm := fileMeta{
 		OriginalPath: filePath,
@@ -271,22 +287,6 @@ func newFileMeta(filePath string) fileMeta {
 	}
 
 	return fm
-}
-
-func filesWithSuffix(suffix []byte, delim byte, raw []byte) (result []byte, endIndex int, wasFound bool) {
-	end := bytes.Index(raw, suffix)
-	if end < 0 {
-		return nil, 0, false
-	}
-
-	start := bytes.LastIndexByte(raw[:end], delim)
-	if start < 0 {
-		return nil, 0, false
-	}
-
-	end = end + len(suffix)
-
-	return raw[start+1:end], end,true
 }
 
 func currentGitRevision(projectDirPath string) (string, error) {
