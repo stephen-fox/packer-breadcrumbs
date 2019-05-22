@@ -2,15 +2,18 @@ package breadcrumbs
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/packer/common"
 	"github.com/hashicorp/packer/helper/config"
@@ -20,7 +23,7 @@ import (
 const (
 	defaultPackerTemplateSizeBytes = 100000
 	defaultSaveFileSizeBytes       = 100000
-	jsonPrefix                     = "    "
+	jsonPrefix                     = ""
 	jsonIndent                     = "    "
 	httpFilePrefix                 = "http://"
 	httpsFilePrefix                = "https://"
@@ -37,15 +40,20 @@ type fileType string
 
 const (
 	unknown   fileType = ""
-	onDisk    fileType = "file_on_disk"
+	localFile fileType = "local_file"
 	httpFile  fileType = "http_file"
 	httpsFile fileType = "https_file"
 )
 
 type fileMeta struct {
-	Type            fileType `json:"type"`
 	OriginalPath    string   `json:"original_path"`
+	Name            string   `json:"name"`
 	DestinationPath string   `json:"destination_path"`
+	Type            fileType `json:"type"`
+}
+
+func (o fileMeta) DestinationDirPath(rootDirPath string) string {
+	return path.Dir(filepath.Join(rootDirPath, o.DestinationPath))
 }
 
 type PluginConfig struct {
@@ -59,26 +67,38 @@ type PluginConfig struct {
 	// 'common.PackerConfig' struct.
 	TemplatePath string `mapstructure:"packer_template_path"`
 
-	DebugConfig       bool     `mapstructure:"debug_config"`
-	DebugManifest     bool     `mapstructure:"debug_manifest"`
+	IncludeSuffixes   []string `mapstructure:"include_suffixes"`
+	DirPath           string   `mapstructure:"dir_path"`
 	TemplateSizeBytes int64    `mapstructure:"template_size_bytes"`
 	SaveFileSizeBytes int64    `mapstructure:"save_file_size_bytes"`
-	IncludeSuffixes   []string `mapstructure:"include_suffixes"`
+	DebugConfig       bool     `mapstructure:"debug_config"`
+	DebugManifest     bool     `mapstructure:"debug_manifest"`
+	DebugBreadcrumbs  bool     `mapstructure:"debug_breadcrumbs"`
 
 	projectDirPath string `mapstructure:"-"`
 }
 
 // TODO: Template version?
 type Manifest struct {
-	GitRevision       string                `json:"git_revision"`
-	PackerBuildName   string                `json:"packer_build_name"`
-	PackerBuildType   string                `json:"packer_build_type"`
-	PackerUserVars    map[string]string     `json:"packer_user_variables"`
-	PackerTemplateB64 string                `json:"packer_template_base64"`
-	OSName            string                `json:"os_name"`
-	OSVersion         string                `json:"os_version"`
-	IncludeSuffixes   []string              `json:"include_suffixes"`
-	SuffixesToMeta    map[string][]fileMeta `json:"suffixes_to_file_meta"`
+	GitRevision     string                `json:"git_revision"`
+	PackerBuildName string                `json:"packer_build_name"`
+	PackerBuildType string                `json:"packer_build_type"`
+	PackerUserVars  map[string]string     `json:"packer_user_variables"`
+	PackerTemplate  string                `json:"packer_template_base64"`
+	OSName          string                `json:"os_name"`
+	OSVersion       string                `json:"os_version"`
+	IncludeSuffixes []string              `json:"include_suffixes"`
+	SuffixesToMeta  map[string][]fileMeta `json:"suffixes_to_file_meta"`
+	pTemplateRaw    []byte                `json:"-"`
+}
+
+func (o *Manifest) ToJson() ([]byte, error) {
+	raw, err := json.MarshalIndent(o, jsonPrefix, jsonIndent)
+	if err != nil {
+		return nil, err
+	}
+
+	return raw, nil
 }
 
 type Provisioner struct {
@@ -118,9 +138,33 @@ func (o *Provisioner) Prepare(rawConfigs ...interface{}) error {
 			return err
 		}
 
-		debugRaw, _ := json.MarshalIndent(manifest, jsonPrefix, jsonIndent)
+		out, err := manifest.ToJson()
+		if err != nil {
+			return err
+		}
 
-		return fmt.Errorf("%s", debugRaw)
+		return fmt.Errorf("%s", out)
+	}
+
+	if o.config.DebugBreadcrumbs {
+		manifest, err := o.newManifest(nil)
+		if err != nil {
+			return err
+		}
+
+		if len(strings.TrimSpace(o.config.DirPath)) == 0 {
+			o.config.DirPath, err = ioutil.TempDir("", "breadcrumbs-")
+			if err != nil {
+				return err
+			}
+		}
+
+		err = createBreadcrumbs(o.config.DirPath, manifest, o.config.SaveFileSizeBytes)
+		if err != nil {
+			return err
+		}
+
+		return fmt.Errorf("created breadcrumbs at '%s'", o.config.DirPath)
 	}
 
 	return nil
@@ -161,13 +205,14 @@ func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, 
 	}
 
 	manifest := &Manifest{
-		GitRevision:       gitRev,
-		PackerBuildName:   o.config.PackerBuildName,
-		PackerBuildType:   o.config.PackerBuilderType,
-		PackerUserVars:    o.config.PackerUserVars,
-		PackerTemplateB64: base64.StdEncoding.EncodeToString(templateRaw),
-		IncludeSuffixes:   o.config.IncludeSuffixes,
-		SuffixesToMeta:    suffixesToMeta,
+		GitRevision:     gitRev,
+		PackerBuildName: o.config.PackerBuildName,
+		PackerBuildType: o.config.PackerBuilderType,
+		PackerUserVars:  o.config.PackerUserVars,
+		PackerTemplate:  path.Base(o.config.TemplatePath),
+		IncludeSuffixes: o.config.IncludeSuffixes,
+		SuffixesToMeta:  suffixesToMeta,
+		pTemplateRaw:    templateRaw,
 	}
 
 	if communicator != nil {
@@ -239,6 +284,7 @@ func filesWithSuffixesInDir(dirPath string, suffixes []string, maxSizeBytes int6
 	return nil
 }
 
+// TODO: Append delim to suffix to avoid badness.
 func filesWithSuffixRecursive(suffix []byte, delim byte, raw []byte, results []fileMeta) []fileMeta {
 	result, endIndex, wasFound := filesWithSuffix(suffix, delim, raw)
 	if wasFound {
@@ -272,6 +318,7 @@ func filesWithSuffix(suffix []byte, delim byte, raw []byte) (result []byte, endI
 
 func newFileMeta(filePath string) fileMeta {
 	fm := fileMeta{
+		Name:         filepath.Base(filePath),
 		OriginalPath: filePath,
 	}
 
@@ -282,7 +329,7 @@ func newFileMeta(filePath string) fileMeta {
 		fm.Type = httpsFile
 		fm.DestinationPath = path.Base(filePath)
 	} else {
-		fm.Type = onDisk
+		fm.Type = localFile
 		fm.DestinationPath = filePath
 	}
 
@@ -300,4 +347,117 @@ func currentGitRevision(projectDirPath string) (string, error) {
 	}
 
 	return string(bytes.TrimSpace(raw)), nil
+}
+
+func createBreadcrumbs(rootDirPath string, manifest *Manifest, maxSaveSizeBytes int64) error {
+	err := os.MkdirAll(rootDirPath, 0700)
+	if err != nil {
+		return err
+	}
+
+	manifestJson, err := manifest.ToJson()
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(path.Join(rootDirPath, "breadcrumbs.json"), manifestJson, 0600)
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(path.Join(rootDirPath, manifest.PackerTemplate), manifest.pTemplateRaw, 0600)
+	if err != nil {
+		return err
+	}
+
+	for _, metas := range manifest.SuffixesToMeta {
+		for i := range metas {
+			destDirPath := metas[i].DestinationDirPath(rootDirPath)
+			err := os.MkdirAll(destDirPath, 0700)
+			if err != nil {
+				return err
+			}
+
+			destPath := path.Join(destDirPath, metas[i].Name)
+
+			switch metas[i].Type {
+			case httpFile, httpsFile:
+				p, err := url.Parse(metas[i].OriginalPath)
+				if err != nil {
+					return err
+				}
+
+				err = getHttpFile(p, destPath, maxSaveSizeBytes, 30 * time.Second)
+				if err != nil {
+					return err
+				}
+			case localFile:
+				err := copyLocalFile(metas[i].OriginalPath, destPath)
+				if err != nil {
+					return fmt.Errorf("failed to copy local file '%s' to '%s' - %s",
+						metas[i].OriginalPath, destPath, err.Error())
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func getHttpFile(p *url.URL, destPath string, maxSizeBytes int64, timeout time.Duration) error {
+	dest, err := os.OpenFile(destPath, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return err
+	}
+	defer dest.Close()
+
+	httpClient := &http.Client{
+		Timeout: timeout,
+	}
+
+	response, err := httpClient.Get(p.String())
+	if err != nil {
+		return err
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to GET http file '%s' - got status code %d",
+			p.String(), response.StatusCode)
+	}
+
+	r := io.LimitReader(response.Body, maxSizeBytes)
+
+	_, err = io.Copy(dest, r)
+	if err != nil && err == io.EOF {
+		return fmt.Errorf("http file '%s' exceeds maximum size of %d byte",
+			p.String(), maxSizeBytes)
+	}
+
+	return nil
+}
+
+func copyLocalFile(sourcePath string, destPath string) error {
+	sourceInfo, err := os.Stat(sourcePath)
+	if err != nil {
+		return err
+	}
+
+	dest, err := os.OpenFile(destPath, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, sourceInfo.Mode())
+	if err != nil {
+		return err
+	}
+	defer dest.Close()
+
+	source, err := os.Open(sourcePath)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+
+	_, err = io.Copy(dest, source)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
