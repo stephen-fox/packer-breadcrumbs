@@ -70,7 +70,7 @@ type PluginConfig struct {
 
 // TODO: Template version?
 type Manifest struct {
-	SourceControlRev  string                `json:"scm_revision"`
+	GitRevision       string                `json:"git_revision"`
 	PackerBuildName   string                `json:"packer_build_name"`
 	PackerBuildType   string                `json:"packer_build_type"`
 	PackerUserVars    map[string]string     `json:"packer_user_variables"`
@@ -154,13 +154,13 @@ func (o *Provisioner) newManifest(c packer.Communicator) (*Manifest, error) {
 		return nil, fmt.Errorf("failed to find files with suffixes in Packer template file - %s", err.Error())
 	}
 
-	rev, err := currentGitRevision(o.config.projectDirPath)
+	gitRev, err := currentGitRevision(o.config.projectDirPath)
 	if err != nil {
 		return nil, err
 	}
 
 	manifest := &Manifest{
-		SourceControlRev:  rev,
+		GitRevision:       gitRev,
 		PackerBuildName:   o.config.PackerBuildName,
 		PackerBuildType:   o.config.PackerBuilderType,
 		PackerUserVars:    o.config.PackerUserVars,
