@@ -149,9 +149,10 @@ func (o *Provisioner) newManifest(c packer.Communicator) (*Manifest, error) {
 		return nil, fmt.Errorf("failed to find files with suffixes in project directory - %s", err.Error())
 	}
 
-	err = filesWithSuffixesInRawData(templateRaw, o.config.IncludeSuffixes, suffixesToMeta)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find files with suffixes in Packer template file - %s", err.Error())
+	for i := range o.config.IncludeSuffixes {
+		results := filesWithSuffixRecursive([]byte(o.config.IncludeSuffixes[i]), '"', templateRaw, []fileMeta{})
+
+		suffixesToMeta[o.config.IncludeSuffixes[i]] = append(suffixesToMeta[o.config.IncludeSuffixes[i]], results...)
 	}
 
 	gitRev, err := currentGitRevision(o.config.projectDirPath)
@@ -238,25 +239,15 @@ func filesWithSuffixesInDir(dirPath string, suffixes []string, maxSizeBytes int6
 	return nil
 }
 
-func filesWithSuffixesInRawData(raw []byte, suffixes []string, suffixesToFilePaths map[string][]fileMeta) error {
-	for i := range suffixes {
-		results := filesInRawData(raw, []byte(suffixes[i]), []fileMeta{})
-
-		suffixesToFilePaths[suffixes[i]] = append(suffixesToFilePaths[suffixes[i]], results...)
-	}
-
-	return nil
-}
-
-func filesInRawData(raw []byte, suffix []byte, results []fileMeta) []fileMeta {
-	result, endIndex, wasFound := suffixesInData(raw, suffix)
+func filesWithSuffixRecursive(suffix []byte, delim byte, raw []byte, results []fileMeta) []fileMeta {
+	result, endIndex, wasFound := filesWithSuffix(suffix, delim, raw)
 	if wasFound {
 		if len(result) != len(suffix) {
 			results = append(results, newFileMeta(string(result)))
 		}
 
 		if len(raw) > 0 && endIndex < len(raw) {
-			return filesInRawData(raw[endIndex:], suffix, results)
+			return filesWithSuffixRecursive(suffix, delim, raw[endIndex:], results)
 		}
 	}
 
@@ -282,13 +273,13 @@ func newFileMeta(filePath string) fileMeta {
 	return fm
 }
 
-func suffixesInData(raw []byte, suffix []byte) (result []byte, endIndex int, wasFound bool) {
+func filesWithSuffix(suffix []byte, delim byte, raw []byte) (result []byte, endIndex int, wasFound bool) {
 	end := bytes.Index(raw, suffix)
 	if end < 0 {
 		return nil, 0, false
 	}
 
-	start := bytes.LastIndexByte(raw[:end], '"')
+	start := bytes.LastIndexByte(raw[:end], delim)
 	if start < 0 {
 		return nil, 0, false
 	}

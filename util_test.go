@@ -57,14 +57,14 @@ var (
 `)
 )
 
-func TestFilesInRawData(t *testing.T) {
+func TestFilesWithSuffixRecursive(t *testing.T) {
 	expected := []string{
 		"https://cool.com/centos/7/packer-generic.ks",
 		"abc-generic.ks",
 		"/path/to/file/centos/7/def-generic.ks",
 	}
 
-	results := filesInRawData(positiveTestFileContents, []byte(".ks"), []fileMeta{})
+	results := filesWithSuffixRecursive([]byte(".ks"), '"', positiveTestFileContents, []fileMeta{})
 
 	if len(results) == 0 {
 		t.Fatalf("results is empty")
@@ -78,8 +78,8 @@ func TestFilesInRawData(t *testing.T) {
 	}
 }
 
-func TestSuffixesInData(t *testing.T) {
-	resultRaw, endIndex, found := suffixesInData(positiveTestFileContents, []byte(".ks"))
+func TestFilesWithSuffix(t *testing.T) {
+	resultRaw, endIndex, found := filesWithSuffix([]byte(".ks"), '"', positiveTestFileContents)
 	if !found {
 		t.Fatal("no results were found")
 	}
