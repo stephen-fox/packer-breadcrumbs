@@ -126,7 +126,7 @@ func (o *Provisioner) Prepare(rawConfigs ...interface{}) error {
 	return nil
 }
 
-func (o *Provisioner) newManifest(c packer.Communicator) (*Manifest, error) {
+func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, error) {
 	info, err := os.Stat(o.config.TemplatePath)
 	if err != nil {
 		return nil, err
@@ -170,25 +170,25 @@ func (o *Provisioner) newManifest(c packer.Communicator) (*Manifest, error) {
 		SuffixesToMeta:    suffixesToMeta,
 	}
 
-	if c != nil {
-		switch getOSCategory(c) {
+	if communicator != nil {
+		switch getOSCategory(communicator) {
 		case unix:
 			var ok bool
-			manifest.OSName, manifest.OSVersion, ok = isRedHat(c)
+			manifest.OSName, manifest.OSVersion, ok = isRedHat(communicator)
 			if ok {
 				break
 			}
-			manifest.OSName, manifest.OSVersion, ok = isDebian(c)
+			manifest.OSName, manifest.OSVersion, ok = isDebian(communicator)
 			if ok {
 				break
 			}
-			manifest.OSName, manifest.OSVersion, ok = isMacos(c)
+			manifest.OSName, manifest.OSVersion, ok = isMacos(communicator)
 			if ok {
 				break
 			}
 		case windows:
 			manifest.OSName = "windows"
-			manifest.OSVersion = windowsVersion(c)
+			manifest.OSVersion = windowsVersion(communicator)
 		}
 	}
 
