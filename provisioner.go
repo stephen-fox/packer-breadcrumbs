@@ -59,13 +59,13 @@ type PluginConfig struct {
 	// 'common.PackerConfig' struct.
 	TemplatePath string `mapstructure:"packer_template_path"`
 
-	projectDirPath string `mapstructure:"-"`
-
 	DebugConfig       bool     `mapstructure:"debug_config"`
 	DebugManifest     bool     `mapstructure:"debug_manifest"`
 	TemplateSizeBytes int64    `mapstructure:"template_size_bytes"`
 	SaveFileSizeBytes int64    `mapstructure:"save_file_size_bytes"`
 	IncludeSuffixes   []string `mapstructure:"include_suffixes"`
+
+	projectDirPath string `mapstructure:"-"`
 }
 
 // TODO: Template version?
