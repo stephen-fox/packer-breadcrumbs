@@ -140,4 +140,3 @@ func getVersion(s string) string {
 
 	return version.String()
 }
-
