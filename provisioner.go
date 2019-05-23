@@ -111,6 +111,7 @@ type Provisioner struct {
 }
 
 func (o *Provisioner) Prepare(rawConfigs ...interface{}) error {
+	// TODO: Interpolate user variables.
 	err := config.Decode(&o.config, nil, rawConfigs...)
 	if err != nil {
 		return err
