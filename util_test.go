@@ -64,7 +64,7 @@ func TestFilesWithSuffixRecursive(t *testing.T) {
 		"/path/to/file/centos/7/def-generic.ks",
 	}
 
-	results := filesWithSuffixRecursive([]byte(".ks"), positiveTestFileContents, []fileMeta{})
+	results := filesWithSuffixRecursive([]byte(".ks"), positiveTestFileContents, []FileMeta{})
 
 	if len(results) == 0 {
 		t.Fatalf("results is empty")
