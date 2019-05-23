@@ -236,11 +236,6 @@ func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, 
 
 	suffixesToMeta := make(map[string][]fileMeta)
 
-	err = filesWithSuffixesInDir(o.config.projectDirPath, o.config.IncludeSuffixes, o.config.SaveFileSizeBytes, suffixesToMeta)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find files with suffixes in project directory - %s", err.Error())
-	}
-
 	for i := range o.config.IncludeSuffixes {
 		results := filesWithSuffixRecursive([]byte(o.config.IncludeSuffixes[i]), templateRaw, []fileMeta{})
 
@@ -290,42 +285,6 @@ func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, 
 
 func (o *Provisioner) Cancel() {
 	os.Exit(123)
-}
-
-func filesWithSuffixesInDir(dirPath string, suffixes []string, maxSizeBytes int64, suffixesToPaths map[string][]fileMeta) error {
-	fn := func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			return nil
-		}
-
-		for i := range suffixes {
-			if strings.HasSuffix(path, suffixes[i]) {
-				if info.Size() > maxSizeBytes {
-					return fmt.Errorf("file '%s' exceedes maximum size of %d bytes",
-						path, maxSizeBytes)
-				}
-
-				p := strings.TrimPrefix(path, dirPath)
-				p = strings.TrimPrefix(p, "/")
-				suffixesToPaths[suffixes[i]] = append(suffixesToPaths[suffixes[i]], newFileMeta(p))
-
-				break
-			}
-		}
-
-		return nil
-	}
-
-	err := filepath.Walk(dirPath, fn)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func filesWithSuffixRecursive(suffix []byte, raw []byte, results []fileMeta) []fileMeta {
