@@ -48,14 +48,14 @@ const (
 	httpsFile fileType = "https_file"
 )
 
-type fileMeta struct {
+type FileMeta struct {
 	OriginalPath    string   `json:"original_path"`
 	Name            string   `json:"name"`
 	DestinationPath string   `json:"destination_path"`
 	Type            fileType `json:"type"`
 }
 
-func (o fileMeta) DestinationDirPath(rootDirPath string) string {
+func (o FileMeta) DestinationDirPath(rootDirPath string) string {
 	return path.Dir(filepath.Join(rootDirPath, o.DestinationPath))
 }
 
@@ -92,7 +92,7 @@ type Manifest struct {
 	OSName          string                `json:"os_name"`
 	OSVersion       string                `json:"os_version"`
 	IncludeSuffixes []string              `json:"include_suffixes"`
-	SuffixesToMeta  map[string][]fileMeta `json:"suffixes_to_file_meta"`
+	SuffixesToMeta  map[string][]FileMeta `json:"suffixes_to_file_meta"`
 	pTemplateRaw    []byte                `json:"-"`
 }
 
@@ -234,10 +234,10 @@ func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, 
 		return nil, err
 	}
 
-	suffixesToMeta := make(map[string][]fileMeta)
+	suffixesToMeta := make(map[string][]FileMeta)
 
 	for i := range o.config.IncludeSuffixes {
-		results := filesWithSuffixRecursive([]byte(o.config.IncludeSuffixes[i]), templateRaw, []fileMeta{})
+		results := filesWithSuffixRecursive([]byte(o.config.IncludeSuffixes[i]), templateRaw, []FileMeta{})
 
 		suffixesToMeta[o.config.IncludeSuffixes[i]] = append(suffixesToMeta[o.config.IncludeSuffixes[i]], results...)
 	}
@@ -287,7 +287,7 @@ func (o *Provisioner) Cancel() {
 	os.Exit(123)
 }
 
-func filesWithSuffixRecursive(suffix []byte, raw []byte, results []fileMeta) []fileMeta {
+func filesWithSuffixRecursive(suffix []byte, raw []byte, results []FileMeta) []FileMeta {
 	result, endIndex, wasFound := fileWithSuffix(suffix, raw)
 	if wasFound {
 		if len(result) != len(suffix) {
@@ -323,8 +323,8 @@ func fileWithSuffix(suffix []byte, raw []byte) (result []byte, endDelimIndex int
 	return raw[start+1: endDelimIndex], endDelimIndex,true
 }
 
-func newFileMeta(filePath string) fileMeta {
-	fm := fileMeta{
+func newFileMeta(filePath string) FileMeta {
+	fm := FileMeta{
 		Name:         filepath.Base(filePath),
 		OriginalPath: filePath,
 	}
