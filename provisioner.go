@@ -330,7 +330,7 @@ func filesWithSuffixesInDir(dirPath string, suffixes []string, maxSizeBytes int6
 
 // TODO: Append delim to suffix to avoid badness.
 func filesWithSuffixRecursive(suffix []byte, raw []byte, results []fileMeta) []fileMeta {
-	result, endIndex, wasFound := filesWithSuffix(suffix, raw)
+	result, endIndex, wasFound := fileWithSuffix(suffix, raw)
 	if wasFound {
 		if len(result) != len(suffix) {
 			results = append(results, newFileMeta(string(result)))
@@ -344,7 +344,7 @@ func filesWithSuffixRecursive(suffix []byte, raw []byte, results []fileMeta) []f
 	return results
 }
 
-func filesWithSuffix(suffix []byte, raw []byte) (result []byte, endDelimIndex int, wasFound bool) {
+func fileWithSuffix(suffix []byte, raw []byte) (result []byte, endDelimIndex int, wasFound bool) {
 	suffixStartIndex := bytes.Index(raw, suffix)
 	if suffixStartIndex < 0 {
 		return nil, 0, false

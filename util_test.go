@@ -78,8 +78,8 @@ func TestFilesWithSuffixRecursive(t *testing.T) {
 	}
 }
 
-func TestFilesWithSuffix(t *testing.T) {
-	resultRaw, endIndex, found := filesWithSuffix([]byte(".ks"), positiveTestFileContents)
+func TestFileWithSuffix(t *testing.T) {
+	resultRaw, endIndex, found := fileWithSuffix([]byte(".ks"), positiveTestFileContents)
 	if !found {
 		t.Fatal("no results were found")
 	}
