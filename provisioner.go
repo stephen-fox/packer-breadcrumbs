@@ -206,7 +206,7 @@ func (o *Provisioner) Provision(ui packer.Ui, communicator packer.Communicator) 
 		return err
 	}
 
-	ui.Say(fmt.Sprintf("Uploading breadcrumbs to %s...", o.config.UploadDirPath))
+	ui.Say(fmt.Sprintf("Uploading breadcrumbs to '%s'...", o.config.UploadDirPath))
 
 	err = communicator.UploadDir("/", o.config.ArtifactsDirPath, nil)
 	if err != nil {
