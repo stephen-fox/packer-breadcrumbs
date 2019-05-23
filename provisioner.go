@@ -358,7 +358,7 @@ func fileWithSuffix(suffix []byte, raw []byte) (result []byte, endDelimIndex int
 	}
 
 	start := bytes.LastIndexByte(raw[:suffixStartIndex], delim)
-	if start < 0 {
+	if start < 0 || start+1 > endDelimIndex {
 		return nil, 0, false
 	}
 
