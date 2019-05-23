@@ -170,6 +170,10 @@ func (o *Provisioner) Prepare(rawConfigs ...interface{}) error {
 	return nil
 }
 
+func (o *Provisioner) Provision(ui packer.Ui, c packer.Communicator) error {
+	return nil
+}
+
 func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, error) {
 	info, err := os.Stat(o.config.TemplatePath)
 	if err != nil {
@@ -238,10 +242,6 @@ func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, 
 	}
 
 	return manifest, nil
-}
-
-func (o *Provisioner) Provision(ui packer.Ui, c packer.Communicator) error {
-	return nil
 }
 
 func (o *Provisioner) Cancel() {
