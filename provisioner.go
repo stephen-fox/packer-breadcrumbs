@@ -71,7 +71,8 @@ type PluginConfig struct {
 	TemplatePath string `mapstructure:"packer_template_path"`
 
 	IncludeSuffixes   []string `mapstructure:"include_suffixes"`
-	DirPath           string   `mapstructure:"dir_path"`
+	ArtifactsDirPath  string   `mapstructure:"artifacts_dir_path"`
+	UploadDirPath     string   `mapstructure:"upload_dir_path"`
 	TemplateSizeBytes int64    `mapstructure:"template_size_bytes"`
 	SaveFileSizeBytes int64    `mapstructure:"save_file_size_bytes"`
 	DebugConfig       bool     `mapstructure:"debug_config"`
@@ -121,6 +122,10 @@ func (o *Provisioner) Prepare(rawConfigs ...interface{}) error {
 
 	o.config.projectDirPath = filepath.Dir(o.config.TemplatePath)
 
+	if len(strings.TrimSpace(o.config.UploadDirPath)) == 0 {
+		o.config.UploadDirPath = "/"
+	}
+
 	if o.config.TemplateSizeBytes == 0 {
 		o.config.TemplateSizeBytes = defaultPackerTemplateSizeBytes
 	}
@@ -155,25 +160,60 @@ func (o *Provisioner) Prepare(rawConfigs ...interface{}) error {
 			return err
 		}
 
-		if len(strings.TrimSpace(o.config.DirPath)) == 0 {
-			o.config.DirPath, err = ioutil.TempDir("", "breadcrumbs-")
+		if len(strings.TrimSpace(o.config.ArtifactsDirPath)) == 0 {
+			o.config.ArtifactsDirPath, err = ioutil.TempDir("", "breadcrumbs-")
 			if err != nil {
 				return err
 			}
 		}
 
-		err = createBreadcrumbs(o.config.DirPath, manifest, o.config.SaveFileSizeBytes)
+		err = createBreadcrumbs(o.config.ArtifactsDirPath, manifest, o.config.SaveFileSizeBytes)
 		if err != nil {
 			return err
 		}
 
-		return fmt.Errorf("created breadcrumbs at '%s'", o.config.DirPath)
+		return fmt.Errorf("created breadcrumbs at '%s'", o.config.ArtifactsDirPath)
 	}
 
 	return nil
 }
 
-func (o *Provisioner) Provision(ui packer.Ui, c packer.Communicator) error {
+func (o *Provisioner) Provision(ui packer.Ui, communicator packer.Communicator) error {
+	manifest, err := o.newManifest(communicator)
+	if err != nil {
+		return err
+	}
+
+	// TODO: Should this be done during the 'Prepare()' call?
+	if len(strings.TrimSpace(o.config.ArtifactsDirPath)) == 0 {
+		temp, err := ioutil.TempDir("", "breadcrumbs-")
+		if err != nil {
+			return err
+		}
+
+		o.config.ArtifactsDirPath = filepath.Join(temp, "breadcrumbs")
+
+		err = os.MkdirAll(o.config.ArtifactsDirPath, 0700)
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(o.config.ArtifactsDirPath)
+	}
+
+	err = createBreadcrumbs(o.config.ArtifactsDirPath, manifest, o.config.SaveFileSizeBytes)
+	if err != nil {
+		return err
+	}
+
+	ui.Say(fmt.Sprintf("Uploading breadcrumbs to %s...", o.config.UploadDirPath))
+
+	err = communicator.UploadDir("/", o.config.ArtifactsDirPath, nil)
+	if err != nil {
+		return err
+	}
+
+	ui.Say("Successfully uploaded breadcrumbs")
+
 	return nil
 }
 
