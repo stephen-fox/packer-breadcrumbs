@@ -71,7 +71,7 @@ func TestFilesWithSuffixRecursive(t *testing.T) {
 	}
 
 	for i := range results {
-		if results[i].OriginalPath != expected[i] {
+		if results[i].FoundAtPath != expected[i] {
 			t.Fatalf("result %d should have been '%s' - got '%s'",
 				i, expected[i], results[i])
 		}

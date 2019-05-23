@@ -2,6 +2,7 @@ package breadcrumbs
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -49,14 +50,14 @@ const (
 )
 
 type FileMeta struct {
-	OriginalPath    string   `json:"original_path"`
-	Name            string   `json:"name"`
-	DestinationPath string   `json:"destination_path"`
-	Type            fileType `json:"type"`
+	Name         string   `json:"name"`
+	FoundAtPath  string   `json:"found_at_path"`
+	StoredAtPath string   `json:"stored_at_path"`
+	Type         fileType `json:"type"`
 }
 
 func (o FileMeta) DestinationDirPath(rootDirPath string) string {
-	return path.Dir(filepath.Join(rootDirPath, o.DestinationPath))
+	return path.Dir(filepath.Join(rootDirPath, o.StoredAtPath))
 }
 
 type PluginConfig struct {
@@ -84,16 +85,16 @@ type PluginConfig struct {
 
 // TODO: Template version?
 type Manifest struct {
-	GitRevision     string                `json:"git_revision"`
-	PackerBuildName string                `json:"packer_build_name"`
-	PackerBuildType string                `json:"packer_build_type"`
-	PackerUserVars  map[string]string     `json:"packer_user_variables"`
-	PackerTemplate  string                `json:"packer_template_base64"`
-	OSName          string                `json:"os_name"`
-	OSVersion       string                `json:"os_version"`
-	IncludeSuffixes []string              `json:"include_suffixes"`
-	SuffixesToMeta  map[string][]FileMeta `json:"suffixes_to_file_meta"`
-	pTemplateRaw    []byte                `json:"-"`
+	GitRevision     string            `json:"git_revision"`
+	PackerBuildName string            `json:"packer_build_name"`
+	PackerBuildType string            `json:"packer_build_type"`
+	PackerUserVars  map[string]string `json:"packer_user_variables"`
+	OSName          string            `json:"os_name"`
+	OSVersion       string            `json:"os_version"`
+	IncludeSuffixes []string          `json:"include_suffixes"`
+	PackerTemplate  string            `json:"packer_template_path"`
+	FoundFiles      []FileMeta        `json:"found_files"`
+	pTemplateRaw    []byte            `json:"-"`
 }
 
 func (o *Manifest) ToJson() ([]byte, error) {
@@ -234,12 +235,12 @@ func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, 
 		return nil, err
 	}
 
-	suffixesToMeta := make(map[string][]FileMeta)
+	var foundFileMetas []FileMeta
 
 	for i := range o.config.IncludeSuffixes {
 		results := filesWithSuffixRecursive([]byte(o.config.IncludeSuffixes[i]), templateRaw, []FileMeta{})
 
-		suffixesToMeta[o.config.IncludeSuffixes[i]] = append(suffixesToMeta[o.config.IncludeSuffixes[i]], results...)
+		foundFileMetas = append(foundFileMetas, results...)
 	}
 
 	gitRev, err := currentGitRevision(o.config.projectDirPath)
@@ -252,9 +253,9 @@ func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, 
 		PackerBuildName: o.config.PackerBuildName,
 		PackerBuildType: o.config.PackerBuilderType,
 		PackerUserVars:  o.config.PackerUserVars,
-		PackerTemplate:  path.Base(o.config.TemplatePath),
+		PackerTemplate:  hashString(path.Base(o.config.TemplatePath)),
 		IncludeSuffixes: o.config.IncludeSuffixes,
-		SuffixesToMeta:  suffixesToMeta,
+		FoundFiles:      foundFileMetas,
 		pTemplateRaw:    templateRaw,
 	}
 
@@ -291,7 +292,7 @@ func filesWithSuffixRecursive(suffix []byte, raw []byte, results []FileMeta) []F
 	result, endIndex, wasFound := fileWithSuffix(suffix, raw)
 	if wasFound {
 		if len(result) != len(suffix) {
-			results = append(results, newFileMeta(string(result)))
+			results = append(results, newFileMeta(result))
 		}
 
 		if len(raw) > 0 && endIndex < len(raw) {
@@ -323,24 +324,32 @@ func fileWithSuffix(suffix []byte, raw []byte) (result []byte, endDelimIndex int
 	return raw[start+1: endDelimIndex], endDelimIndex,true
 }
 
-func newFileMeta(filePath string) FileMeta {
+func newFileMeta(filePathRaw []byte) FileMeta {
+	filePath := string(filePathRaw)
+
 	fm := FileMeta{
 		Name:         filepath.Base(filePath),
-		OriginalPath: filePath,
+		FoundAtPath:  filePath,
+		StoredAtPath: hashBytes(filePathRaw),
 	}
 
 	if strings.HasPrefix(filePath, httpFilePrefix) {
 		fm.Type = httpFile
-		fm.DestinationPath = path.Base(filePath)
 	} else if strings.HasPrefix(filePath, httpsFilePrefix) {
 		fm.Type = httpsFile
-		fm.DestinationPath = path.Base(filePath)
 	} else {
 		fm.Type = localFile
-		fm.DestinationPath = filePath
 	}
 
 	return fm
+}
+
+func hashString(s string) string {
+	return hashBytes([]byte(s))
+}
+
+func hashBytes(s []byte) string {
+	return fmt.Sprintf("%x", sha256.Sum256(s))
 }
 
 func currentGitRevision(projectDirPath string) (string, error) {
@@ -377,33 +386,31 @@ func createBreadcrumbs(rootDirPath string, manifest *Manifest, maxSaveSizeBytes 
 		return err
 	}
 
-	for _, metas := range manifest.SuffixesToMeta {
-		for i := range metas {
-			destDirPath := metas[i].DestinationDirPath(rootDirPath)
-			err := os.MkdirAll(destDirPath, 0700)
+	for i := range manifest.FoundFiles {
+		destDirPath := manifest.FoundFiles[i].DestinationDirPath(rootDirPath)
+		err := os.MkdirAll(destDirPath, 0700)
+		if err != nil {
+			return err
+		}
+
+		destPath := path.Join(destDirPath, manifest.FoundFiles[i].StoredAtPath)
+
+		switch manifest.FoundFiles[i].Type {
+		case httpFile, httpsFile:
+			p, err := url.Parse(manifest.FoundFiles[i].FoundAtPath)
 			if err != nil {
 				return err
 			}
 
-			destPath := path.Join(destDirPath, metas[i].Name)
-
-			switch metas[i].Type {
-			case httpFile, httpsFile:
-				p, err := url.Parse(metas[i].OriginalPath)
-				if err != nil {
-					return err
-				}
-
-				err = getHttpFile(p, destPath, maxSaveSizeBytes, 30 * time.Second)
-				if err != nil {
-					return err
-				}
-			case localFile:
-				err := copyLocalFile(metas[i].OriginalPath, destPath)
-				if err != nil {
-					return fmt.Errorf("failed to copy local file '%s' to '%s' - %s",
-						metas[i].OriginalPath, destPath, err.Error())
-				}
+			err = getHttpFile(p, destPath, maxSaveSizeBytes, 30 * time.Second)
+			if err != nil {
+				return err
+			}
+		case localFile:
+			err := copyLocalFile(manifest.FoundFiles[i].FoundAtPath, destPath)
+			if err != nil {
+				return fmt.Errorf("failed to copy local file '%s' to '%s' - %s",
+					manifest.FoundFiles[i].FoundAtPath, destPath, err.Error())
 			}
 		}
 	}
