@@ -486,12 +486,7 @@ func getHttpFile(p *url.URL, destPath string, maxSizeBytes int64, timeout time.D
 }
 
 func copyLocalFile(sourcePath string, destPath string) error {
-	sourceInfo, err := os.Stat(sourcePath)
-	if err != nil {
-		return err
-	}
-
-	dest, err := os.OpenFile(destPath, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, sourceInfo.Mode())
+	dest, err := os.OpenFile(destPath, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
