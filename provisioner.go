@@ -27,6 +27,9 @@ const (
 	jsonIndent                     = "    "
 	httpFilePrefix                 = "http://"
 	httpsFilePrefix                = "https://"
+
+	doubleQuoteChar byte = '"'
+	possibleDelims       = "'\" "
 )
 
 type osCategory string
@@ -198,7 +201,7 @@ func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, 
 	}
 
 	for i := range o.config.IncludeSuffixes {
-		results := filesWithSuffixRecursive([]byte(o.config.IncludeSuffixes[i]), '"', templateRaw, []fileMeta{})
+		results := filesWithSuffixRecursive([]byte(o.config.IncludeSuffixes[i]), templateRaw, []fileMeta{})
 
 		suffixesToMeta[o.config.IncludeSuffixes[i]] = append(suffixesToMeta[o.config.IncludeSuffixes[i]], results...)
 	}
@@ -285,35 +288,40 @@ func filesWithSuffixesInDir(dirPath string, suffixes []string, maxSizeBytes int6
 }
 
 // TODO: Append delim to suffix to avoid badness.
-func filesWithSuffixRecursive(suffix []byte, delim byte, raw []byte, results []fileMeta) []fileMeta {
-	result, endIndex, wasFound := filesWithSuffix(suffix, delim, raw)
+func filesWithSuffixRecursive(suffix []byte, raw []byte, results []fileMeta) []fileMeta {
+	result, endIndex, wasFound := filesWithSuffix(suffix, raw)
 	if wasFound {
 		if len(result) != len(suffix) {
 			results = append(results, newFileMeta(string(result)))
 		}
 
 		if len(raw) > 0 && endIndex < len(raw) {
-			return filesWithSuffixRecursive(suffix, delim, raw[endIndex:], results)
+			return filesWithSuffixRecursive(suffix, raw[endIndex:], results)
 		}
 	}
 
 	return results
 }
 
-func filesWithSuffix(suffix []byte, delim byte, raw []byte) (result []byte, endIndex int, wasFound bool) {
-	end := bytes.Index(raw, suffix)
-	if end < 0 {
+func filesWithSuffix(suffix []byte, raw []byte) (result []byte, endDelimIndex int, wasFound bool) {
+	suffixStartIndex := bytes.Index(raw, suffix)
+	if suffixStartIndex < 0 {
 		return nil, 0, false
 	}
 
-	start := bytes.LastIndexByte(raw[:end], delim)
+	endDelimIndex = suffixStartIndex + len(suffix)
+
+	delim := doubleQuoteChar
+	if len(raw) - 1 >= endDelimIndex && bytes.ContainsAny([]byte{raw[endDelimIndex]}, possibleDelims) {
+		delim = raw[endDelimIndex]
+	}
+
+	start := bytes.LastIndexByte(raw[:suffixStartIndex], delim)
 	if start < 0 {
 		return nil, 0, false
 	}
 
-	end = end + len(suffix)
-
-	return raw[start+1:end], end,true
+	return raw[start+1: endDelimIndex], endDelimIndex,true
 }
 
 func newFileMeta(filePath string) fileMeta {

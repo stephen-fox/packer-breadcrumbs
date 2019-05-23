@@ -51,7 +51,7 @@ var (
   ],
   "post-processors": [
     "ova-forge"
-    "def": "/path/to/file/centos/7/def-generic.ks",
+    "def": "curl /path/to/file/centos/7/def-generic.ks | bash",
   ]
 }
 `)
@@ -64,7 +64,7 @@ func TestFilesWithSuffixRecursive(t *testing.T) {
 		"/path/to/file/centos/7/def-generic.ks",
 	}
 
-	results := filesWithSuffixRecursive([]byte(".ks"), '"', positiveTestFileContents, []fileMeta{})
+	results := filesWithSuffixRecursive([]byte(".ks"), positiveTestFileContents, []fileMeta{})
 
 	if len(results) == 0 {
 		t.Fatalf("results is empty")
@@ -79,7 +79,7 @@ func TestFilesWithSuffixRecursive(t *testing.T) {
 }
 
 func TestFilesWithSuffix(t *testing.T) {
-	resultRaw, endIndex, found := filesWithSuffix([]byte(".ks"), '"', positiveTestFileContents)
+	resultRaw, endIndex, found := filesWithSuffix([]byte(".ks"), positiveTestFileContents)
 	if !found {
 		t.Fatal("no results were found")
 	}
