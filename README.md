@@ -78,11 +78,13 @@ your builds.
 #### Metadata
 The plugin will store the following metadata in the manifest file by default:
 
-- `git_revision` - The current git revision hash
-- `packer_build_name` - The name of the packer build (e.g., 'virtualbox-iso')
-- `packer_build_type` - The packer build type (e.g., 'virtualbox-iso')
-- `packer_user_variables` - A map of user variable names to values provided to
-packer. For example:
+- `git_revision` - *string* - The current git revision hash
+- `packer_build_name` - *string* - The name of the packer build
+(e.g., 'virtualbox-iso')
+- `packer_build_type` - *string* - The packer build type (e.g.,
+'virtualbox-iso')
+- `packer_user_variables` - *map key:string value:string* - A map of user
+variable names to values provided to packer. For example:
 ```json
 {
     "packer_user_variables": {
@@ -91,19 +93,20 @@ packer. For example:
     }
 }
 ```
-- `os_name` - The operating system name as determined by the plugin. This
-could be any of the following:
+- `os_name` - *string* - The operating system name as determined by the plugin.
+This could be any of the following:
     - centos
     - debian
     - macos
     - redhat
     - ubuntu
     - windows
-- `os_version` - The operating system version as determined by the plugin
-- `packer_template_path` - The path to the packer template that was used to
-build the current image (this is relative to the manifest file)
-- `include_suffixes` - A list of file suffixes to include as originally
-configured in the packer template. For example:
+- `os_version` - *string* - The operating system version as determined by
+the plugin
+- `packer_template_path` - *string* - The path to the packer template that was
+used to build the current image (this is relative to the manifest file)
+- `include_suffixes` - *array of string* - A list of file suffixes to include
+as originally configured in the packer template. For example:
 ```json
 {
    "include_suffixes": [
