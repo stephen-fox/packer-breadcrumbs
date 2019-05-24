@@ -58,12 +58,18 @@ Defaults to `/breadcrumbs` when not specified
 template in bytes
 - `save_file_size_bytes` - int - The maximum permitted size of any files that
 the plugin will save as breadcrumbs in bytes
+
+#### Debug variables
+If you would like to verify the plugin's functionality, you can specify any of
+the following debug variables. When specified, a debug variable will cause
+the build to fail during the "preparation" phase (unless otherwise noted).
+
 - `debug_config` - boolean - Reports the parsed plugin configuration as
-a plugin configuration error when true
+a plugin configuration error when set to 'true'
 - `debug_manifest` - boolean - Reports the serialized manifest as a plugin
-configuration error when true
+configuration error when set to 'true'
 - `debug_breadcrumbs` - boolean - Saves the breadcrumbs and reports the
-breadcrumbs directory as a plugin configuration error when true
+breadcrumbs directory as a plugin configuration error when set to 'true'
 
 ## Saved breadcrumbs data
 Breadcrumbs are build metadata and files that the plugin can save in
