@@ -38,8 +38,8 @@ your packer template like this:
 #### Available variables
 The following configuration variables are available:
 
-- `include_suffixes` - *array* - A list of file suffixes to find in the packer
-config. For example, you can specify .ks and .sh files like this:
+- `include_suffixes` - *array of string* - A list of file suffixes to find in
+the packer config. For example, you can specify .ks and .sh files like this:
 ```json
 {
   "provisioners": [
