@@ -186,7 +186,6 @@ func (o *Provisioner) Provision(ui packer.Ui, communicator packer.Communicator) 
 		return err
 	}
 
-	// TODO: Should this be done during the 'Prepare()' call?
 	if len(strings.TrimSpace(o.config.ArtifactsDirPath)) == 0 {
 		temp, err := ioutil.TempDir("", "breadcrumbs-")
 		if err != nil {
