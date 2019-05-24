@@ -1,4 +1,4 @@
-# breadcrumbs packer provisoner plugin
+# packer breadcrumbs
 A [packer provisioner](https://packer.io/docs/provisioners/index.html) for
 storing build-related files and metadata inside your builds.
 
@@ -12,10 +12,10 @@ manifest file named `breadcrumbs.json` that describes metadata and any
 saved files.
 
 If you would like the plugin to save certain files that are referenced in your
-packer template, specify the file suffix(es) using the `include_suffixes`
-configuration parameter. For example, if you specify `.sh`, the plugin will
-find all instances of files ending in `.sh` in your template, and will attempt
-to copy them or download them (if they are http URLs) as breadcrumbs.
+packer template, specify the file suffix(es) in the plugin configuration. For
+example, if you specify `.sh`, the plugin will find all instances of files
+ending in `.sh` in your template, and will attempt to copy them or download
+them (if they are http URLs) as breadcrumbs.
 
 ## Configuration
 Like other packer plugins, the plugin is configured in the packer template file
@@ -23,7 +23,7 @@ using a JSON blob.
 
 #### Default configuration
 After installing the plugin, you can specify a default plugin configuration in
-your packer template like this:
+your packer template config like this:
 ```json
 {
   "provisioners": [
@@ -34,11 +34,11 @@ your packer template like this:
 }
 ```
 
-#### Available variables
-The following configuration variables are available:
-
-- `include_suffixes` - *array of string* - A list of file suffixes to find in
-the packer config. For example, you can specify .ks and .sh files like this:
+#### Common configuration example
+Most users will probably be interested in saving at least one or two file
+types. This is done using the `include_suffixes` configuration parameter
+(described below). The following example demonstrates how to find and save any
+`.ks` or `.sh` files referenced in your packer template config:
 ```json
 {
   "provisioners": [
@@ -49,6 +49,12 @@ the packer config. For example, you can specify .ks and .sh files like this:
   ]
 }
 ```
+
+#### Available variables
+The following configuration variables are available:
+
+- `include_suffixes` - *array of string* - A list of file suffixes to find in
+the packer config. For example: `[".ks", ".sh"]`
 - `artifacts_dir_path` - *string* - The directory to save artifacts to. By
 default, this is a temporary directory generated when the plugin runs
 - `upload_dir_path` - *string* - The directory to upload the breadcrumbs to.
@@ -70,11 +76,11 @@ configuration error when set to 'true'
 - `debug_breadcrumbs` - *boolean* - Saves the breadcrumbs and reports the
 breadcrumbs directory as a plugin configuration error when set to 'true'
 
-## Saved breadcrumbs data
-Breadcrumbs are build metadata and files that the plugin can save in
+## Saved breadcrumbs
+Breadcrumbs are build metadata and files that the plugin can save inside
 your builds.
 
-#### Manifest metadata
+#### Breadcrumbs manifest
 The plugin will store the following metadata in the manifest file as a
 JSON blob:
 
@@ -129,6 +135,41 @@ metadata about a file. It consists of the following fields:
         - `local_storage`
         - `http_host`
         - `https_host`
+
+###### Example breadcrumbs manifest
+The following is an example of a breadcrumbs manifest JSON blob:
+```json
+{
+    "git_revision": "5f68622e7557de1cada14585a8ebfc344caac7b9",
+    "packer_build_name": "virtualbox-iso",
+    "packer_build_type": "virtualbox-iso",
+    "packer_user_variables": {
+        "version": "0.0.1",
+        "vm_name": "centos7-template"
+    },
+    "os_name": "centos",
+    "os_version": "7.5.1804",
+    "packer_template_path": "3968485b7af549afbf74a620d104f70bfeca73b09b0d1f1f976996a1534e7515",
+    "include_suffixes": [
+        ".ks",
+        ".sh"
+    ],
+    "found_files": [
+        {
+            "name": "packer-generic.ks",
+            "found_at_path": "https://cool.com/packer-generic.ks",
+            "stored_at_path": "76dde02e89dd273b8100570df8ab7605fa8db7b02a0eabc76952d9ba868955a3",
+            "type": "https_host"
+        },
+        {
+            "name": "post-install-cleanup.sh",
+            "found_at_path": "https://cool.com/post-install-cleanup.sh",
+            "stored_at_path": "7ef70aba188cdafb876886d4db64d3d5ec62b04cd3089a8d00371d246c35362a",
+            "type": "https_host"
+        }
+    ]
+}
+```
 
 #### Saved files
 By default, the plugin will only copy the packer template file. The plugin
