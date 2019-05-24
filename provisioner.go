@@ -103,6 +103,8 @@ func (o *Manifest) ToJson() ([]byte, error) {
 		return nil, err
 	}
 
+	raw = append(raw, '\n')
+
 	return raw, nil
 }
 
