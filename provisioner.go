@@ -33,27 +33,27 @@ const (
 	possibleDelims       = "'\" "
 )
 
-type osCategory string
+type OsCategory string
 
 const (
-	unix    osCategory = "unix"
-	windows osCategory = "windows"
+	Unix    OsCategory = "unix"
+	Windows OsCategory = "windows"
 )
 
-type fileType string
+type FileType string
 
 const (
-	unknown   fileType = ""
-	localFile fileType = "local_file"
-	httpFile  fileType = "http_file"
-	httpsFile fileType = "https_file"
+	Unknown   FileType = ""
+	LocalFile FileType = "local_file"
+	HttpFile  FileType = "http_file"
+	HttpsFile FileType = "https_file"
 )
 
 type FileMeta struct {
 	Name         string   `json:"name"`
 	FoundAtPath  string   `json:"found_at_path"`
 	StoredAtPath string   `json:"stored_at_path"`
-	Type         fileType `json:"type"`
+	Type         FileType `json:"type"`
 }
 
 func (o FileMeta) DestinationDirPath(rootDirPath string) string {
@@ -261,7 +261,7 @@ func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, 
 
 	if communicator != nil {
 		switch getOSCategory(communicator) {
-		case unix:
+		case Unix:
 			var ok bool
 			manifest.OSName, manifest.OSVersion, ok = isRedHat(communicator)
 			if ok {
@@ -275,7 +275,7 @@ func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, 
 			if ok {
 				break
 			}
-		case windows:
+		case Windows:
 			manifest.OSName = "windows"
 			manifest.OSVersion = windowsVersion(communicator)
 		}
@@ -334,11 +334,11 @@ func newFileMeta(filePathRaw []byte) FileMeta {
 	}
 
 	if strings.HasPrefix(filePath, httpFilePrefix) {
-		fm.Type = httpFile
+		fm.Type = HttpFile
 	} else if strings.HasPrefix(filePath, httpsFilePrefix) {
-		fm.Type = httpsFile
+		fm.Type = HttpsFile
 	} else {
-		fm.Type = localFile
+		fm.Type = LocalFile
 	}
 
 	return fm
@@ -396,7 +396,7 @@ func createBreadcrumbs(rootDirPath string, manifest *Manifest, maxSaveSizeBytes 
 		destPath := path.Join(destDirPath, manifest.FoundFiles[i].StoredAtPath)
 
 		switch manifest.FoundFiles[i].Type {
-		case httpFile, httpsFile:
+		case HttpFile, HttpsFile:
 			p, err := url.Parse(manifest.FoundFiles[i].FoundAtPath)
 			if err != nil {
 				return err
@@ -406,7 +406,7 @@ func createBreadcrumbs(rootDirPath string, manifest *Manifest, maxSaveSizeBytes 
 			if err != nil {
 				return err
 			}
-		case localFile:
+		case LocalFile:
 			err := copyLocalFile(manifest.FoundFiles[i].FoundAtPath, destPath)
 			if err != nil {
 				return fmt.Errorf("failed to copy local file '%s' to '%s' - %s",

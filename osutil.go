@@ -8,23 +8,23 @@ import (
 	"github.com/hashicorp/packer/packer"
 )
 
-func getOSCategory(c packer.Communicator) osCategory {
+func getOSCategory(c packer.Communicator) OsCategory {
 	ls := &packer.RemoteCmd{
 		Command: "ls",
 	}
 
 	err := c.Start(ls)
 	if err != nil {
-		return osCategory("unknown")
+		return OsCategory("unknown")
 	}
 
 	ls.Wait()
 
 	if ls.ExitStatus == 0 {
-		return unix
+		return Unix
 	}
 
-	return windows
+	return Windows
 }
 
 func isRedHat(c packer.Communicator) (string, string, bool) {
