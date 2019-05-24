@@ -24,6 +24,7 @@ import (
 const (
 	defaultPackerTemplateSizeBytes = 100000
 	defaultSaveFileSizeBytes       = 100000
+	defaultExcludeChars            = "{}"
 	jsonPrefix                     = ""
 	jsonIndent                     = "    "
 	httpFilePrefix                 = "http://"
@@ -232,7 +233,7 @@ func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, 
 	var foundFileMetas []FileMeta
 
 	for i := range o.config.IncludeSuffixes {
-		results := filesWithSuffixRecursive([]byte(o.config.IncludeSuffixes[i]), templateRaw, []FileMeta{})
+		results := filesWithSuffixRecursive([]byte(o.config.IncludeSuffixes[i]), templateRaw, defaultExcludeChars, []FileMeta{})
 
 		foundFileMetas = append(foundFileMetas, results...)
 	}
@@ -284,15 +285,15 @@ func (o *Provisioner) Cancel() {
 	os.Exit(123)
 }
 
-func filesWithSuffixRecursive(suffix []byte, raw []byte, results []FileMeta) []FileMeta {
+func filesWithSuffixRecursive(suffix []byte, raw []byte, excludeChars string, results []FileMeta) []FileMeta {
 	result, endIndex, wasFound := fileWithSuffix(suffix, raw)
 	if wasFound {
-		if len(result) != len(suffix) {
+		if len(result) != len(suffix) && !bytes.ContainsAny(result, excludeChars) {
 			results = append(results, newFileMeta(result))
 		}
 
 		if len(raw) > 0 && endIndex < len(raw) {
-			return filesWithSuffixRecursive(suffix, raw[endIndex:], results)
+			return filesWithSuffixRecursive(suffix, raw[endIndex:], excludeChars, results)
 		}
 	}
 

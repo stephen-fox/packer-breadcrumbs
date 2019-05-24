@@ -191,8 +191,10 @@ As of Packer version 1.4.1, you need to do the following:
 4. Make sure it is set as executable (on *nix systems)
 
 ## Known issues
-The current file-string-finding logic is... fragile.
+There are some known issues which will (hopefully) be fixed or improved in
+the future.
 
+#### The current file-string-finding logic is... fragile
 One particular circumstance that will cause issues is when a file string does
 not end with a valid scan delimiter (a single quote, double quote, or a space).
 For example:
@@ -209,3 +211,7 @@ For example:
 will cause a build failure. To avoid this, make sure you place a valid scan
 delimiter immediately after any file suffixes (in this case, put a space
 immediately after `.sh`, or surround the URL with single quotes).
+
+#### Files found in packer templates are ignored if they contain `{` or `}`
+The current logic does not support resolving variables. If the plugin finds a
+file string that contains `{` or `}`, it will ignore the file.
