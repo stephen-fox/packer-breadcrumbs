@@ -412,6 +412,8 @@ func createBreadcrumbs(rootDirPath string, manifest *Manifest, maxSaveSizeBytes 
 				return fmt.Errorf("failed to copy local file '%s' to '%s' - %s",
 					manifest.FoundFiles[i].FoundAtPath, destPath, err.Error())
 			}
+		default:
+			return fmt.Errorf("unknown file source '%s'", manifest.FoundFiles[i].Source)
 		}
 	}
 
