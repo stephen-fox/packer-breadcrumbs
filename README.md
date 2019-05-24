@@ -38,7 +38,7 @@ your packer template like this:
 #### Available variables
 The following configuration variables are available:
 
-- `include_suffixes` - array - A list of file suffixes to find in the packer
+- `include_suffixes` - *array* - A list of file suffixes to find in the packer
 config. For example, you can specify .ks and .sh files like this:
 ```json
 {
@@ -50,13 +50,13 @@ config. For example, you can specify .ks and .sh files like this:
   ]
 }
 ```
-- `artifacts_dir_path` - string - The directory to save artifacts to. By
+- `artifacts_dir_path` - *string* - The directory to save artifacts to. By
 default, this is a temporary directory generated when the plugin runs
-- `upload_dir_path` - string - The directory to upload the breadcrumbs to.
+- `upload_dir_path` - *string* - The directory to upload the breadcrumbs to.
 Defaults to `/breadcrumbs` when not specified
-- `template_size_bytes` - int - The maximum permitted size of the packer
+- `template_size_bytes` - *int* - The maximum permitted size of the packer
 template in bytes
-- `save_file_size_bytes` - int - The maximum permitted size of any files that
+- `save_file_size_bytes` - *int* - The maximum permitted size of any files that
 the plugin will save as breadcrumbs in bytes
 
 #### Debug variables
@@ -64,11 +64,11 @@ If you would like to verify the plugin's functionality, you can specify any of
 the following debug variables. When specified, a debug variable will cause
 the build to fail during the "preparation" phase (unless otherwise noted).
 
-- `debug_config` - boolean - Reports the parsed plugin configuration as
+- `debug_config` - *boolean* - Reports the parsed plugin configuration as
 a plugin configuration error when set to 'true'
-- `debug_manifest` - boolean - Reports the serialized manifest as a plugin
+- `debug_manifest` - *boolean* - Reports the serialized manifest as a plugin
 configuration error when set to 'true'
-- `debug_breadcrumbs` - boolean - Saves the breadcrumbs and reports the
+- `debug_breadcrumbs` - *boolean* - Saves the breadcrumbs and reports the
 breadcrumbs directory as a plugin configuration error when set to 'true'
 
 ## Saved breadcrumbs data
