@@ -191,19 +191,21 @@ As of Packer version 1.4.1, you need to do the following:
 4. Make sure it is set as executable (on *nix systems)
 
 ## Known issues
-The current logic that finds strings representing files is... let's call it
-fragile. One particular circumstance that might cause issues is when a file
-string does not begin after a valid scan delimiter (a single quote, double
-quote, or a space). For example:
+The current file-string-finding logic is... fragile.
+
+One particular circumstance that will cause issues is when a file string does
+not end with a valid scan delimiter (a single quote, double quote, or a space).
+For example:
 ```json
 [
     {
       "type": "shell",
-      "script": "a dir/junk.sh "
+      "inline": ["curl https://cool.com/my.sh|bash"]
     }
 ]
 ``` 
 
-... will result in the plugin attempting to copy `dir/junk.sh`, which will
-cause a build failure. To avoid this, make sure your targeted files have a
-scan delimited immediately after them.
+... will result in the plugin downloading `curl https://cool.com/my.sh`, which
+will cause a build failure. To avoid this, make sure you place a valid scan
+delimiter immediately after any file suffixes (in this case, put a space
+immediately after `.sh`, or surround the URL with single quotes).
