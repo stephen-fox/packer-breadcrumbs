@@ -442,9 +442,14 @@ func getHttpFile(p *url.URL, destPath string, maxSizeBytes int64, timeout time.D
 	r := io.LimitReader(response.Body, maxSizeBytes)
 
 	_, err = io.Copy(dest, r)
-	if err != nil && err == io.EOF {
+	switch err {
+	case nil:
+		break
+	case io.EOF:
 		return fmt.Errorf("http file '%s' exceeds maximum size of %d byte",
 			p.String(), maxSizeBytes)
+	default:
+		return err
 	}
 
 	return nil

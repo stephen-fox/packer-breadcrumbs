@@ -2,21 +2,21 @@
 A [packer provisioner](https://packer.io/docs/provisioners/index.html) for
 storing build-related files and metadata inside your builds.
 
-The plugin collects metadata from packer itself and git. It will parse the
+The plugin collects metadata from packer itself and git. It will parse your
 packer template if you opt to save additional files. It creates a manifest
 file in JSON format that describes all of these "breadcrumbs", and sticks it
-(and any files it discovers) into the build result.
+(and any files it discovers) into the machine being built.
 
-By default, the plugin will store breadcrumbs in `/breadcrumbs`. This includes
-a manifest file named `breadcrumbs.json`, which describes metadata and any
-saved files. Files are saved at the root of the breadcrumbs directory, and are
-named by hashing their file path (or URL).
+By default, the plugin will store data in `/breadcrumbs`. This includes a
+manifest file named `breadcrumbs.json` that describes metadata and any saved
+files. Files are saved at the root of the breadcrumbs directory, and are named
+by hashing their file path (or URL).
 
-If you would like the plugin to save certain files that are mentioned in your
-packer template, simply specify the file suffix(es) using the
-`include_suffixes` configuration parameter. For example, if you specify `.sh`,
-the plugin will find all instances of strings ending in `.sh` in your template,
-and will attempt to copy them or download them (if they are http URLs).
+If you would like the plugin to save certain files that are referenced in your
+packer template, specify the file suffix(es) using the `include_suffixes`
+configuration parameter. For example, if you specify `.sh`, the plugin will
+find all instances of files ending in `.sh` in your template, and will attempt
+to copy them or download them (if they are http URLs) as breadcrumbs.
 
 #### Default metadata
 The plugin will store the following metadata in the manifest file by default:
@@ -24,7 +24,7 @@ The plugin will store the following metadata in the manifest file by default:
 - `git_revision` - The current git revision hash
 - `packer_build_name` - The name of the packer build (e.g., 'virtualbox-iso')
 - `packer_build_type` - The packer build type (e.g., 'virtualbox-iso')
-- `packer_user_variables` - A map of user variables names to values provided to
+- `packer_user_variables` - A map of user variable names to values provided to
 packer. For example:
 ```json
 {
@@ -82,7 +82,7 @@ your packer template like this:
 The following configuration variables are available:
 
 - `include_suffixes` - array - A list of file suffixes to find in the packer
-config For example, you can specify .ks and .sh files like this:
+config. For example, you can specify .ks and .sh files like this:
 ```json
 {
   "provisioners": [
@@ -100,7 +100,7 @@ Defaults to `/breadcrumbs` when not specified
 - `template_size_bytes` - int - The maximum permitted size of the packer
 template in bytes
 - `save_file_size_bytes` - int - The maximum permitted size of any files that
-the plugin will save as a breadcrumb
+the plugin will save as breadcrumbs in bytes
 - `debug_config` - boolean - Reports the parsed plugin configuration as
 a plugin configuration error when true
 - `debug_manifest` - boolean - Reports the serialized manifest as a plugin
