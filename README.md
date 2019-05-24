@@ -75,8 +75,9 @@ breadcrumbs directory as a plugin configuration error when set to 'true'
 Breadcrumbs are build metadata and files that the plugin can save in
 your builds.
 
-#### Metadata
-The plugin will store the following metadata in the manifest file by default:
+#### Manifest metadata
+The plugin will store the following metadata in the manifest file as a
+JSON blob:
 
 - `git_revision` - *string* - The current git revision hash
 - `packer_build_name` - *string* - The name of the packer build
