@@ -8,9 +8,8 @@ file in JSON format that describes all of these "breadcrumbs", and sticks it
 (and any files it discovers) into the machine being built.
 
 By default, the plugin will store data in `/breadcrumbs`. This includes a
-manifest file named `breadcrumbs.json` that describes metadata and any saved
-files. Files are saved at the root of the breadcrumbs directory, and are named
-by hashing their file path (or URL).
+manifest file named `breadcrumbs.json` that describes metadata and any
+saved files.
 
 If you would like the plugin to save certain files that are referenced in your
 packer template, specify the file suffix(es) using the `include_suffixes`
@@ -116,11 +115,27 @@ as originally configured in the packer template. For example:
    ]
 }
 ```
+- `found_files` - *array of `FileMeta`* - A list of files and their metadata
+found when parsing the packer template. A `FileMeta` is a structure containing
+metadata about a file. It consists of the following fields:
+    - `name` - *string* - The basename of the file (for example, the name of
+    '/path/to/my.sh' would be 'my.sh')
+    - `found_at_path` - *string* - The file path (relative to the packer
+    template config) or the URL where the file was copied from
+    - `stored_at_path` - *string* - The file path where the file is stored at
+    relative to the manifest file
+    - `source` - *string* - The source type of the file. This can be any of the
+    following:
+        - `local_storage`
+        - `http_host`
+        - `https_host`
 
 #### Saved files
 By default, the plugin will only copy the packer template file. The plugin
 permits you to copy additional files, but you must explicitly specify which
-file types should be saved.
+file types should be saved. Files are saved at the root of the breadcrumbs
+directory and are named by SHA256 hashing their file paths or URLs (if
+downloaded via HTTP).
 
 ## Installation
 As of Packer version 1.4.1, you need to do the following:
