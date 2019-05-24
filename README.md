@@ -20,7 +20,7 @@ to copy them or download them (if they are http URLs) as breadcrumbs.
 
 ## Configuration
 Like other packer plugins, the plugin is configured in the packer template file
-file using a JSON blob.
+using a JSON blob.
 
 #### Default configuration
 After installing the plugin, you can specify a default plugin configuration in
