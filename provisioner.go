@@ -285,6 +285,7 @@ func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, 
 }
 
 func (o *Provisioner) Cancel() {
+	// TODO: Something a little more elegant than this.
 	os.Exit(123)
 }
 
