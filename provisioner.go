@@ -33,13 +33,6 @@ const (
 	possibleDelims       = "'\" "
 )
 
-type OsCategory string
-
-const (
-	Unix    OsCategory = "unix"
-	Windows OsCategory = "windows"
-)
-
 type FileSource string
 
 const (
@@ -263,7 +256,7 @@ func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, 
 
 	if communicator != nil {
 		switch getOSCategory(communicator) {
-		case Unix:
+		case unix:
 			var ok bool
 			manifest.OSName, manifest.OSVersion, ok = isRedHat(communicator)
 			if ok {
@@ -277,7 +270,7 @@ func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, 
 			if ok {
 				break
 			}
-		case Windows:
+		case windows:
 			manifest.OSName = "windows"
 			manifest.OSVersion = windowsVersion(communicator)
 		}
