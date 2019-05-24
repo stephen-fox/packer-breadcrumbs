@@ -321,7 +321,7 @@ func fileWithSuffix(suffix []byte, raw []byte) (result []byte, endDelimIndex int
 		return nil, 0, false
 	}
 
-	return raw[start+1: endDelimIndex], endDelimIndex,true
+	return raw[start+1: endDelimIndex], endDelimIndex, true
 }
 
 func newFileMeta(filePathRaw []byte) FileMeta {
