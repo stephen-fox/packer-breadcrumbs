@@ -94,13 +94,13 @@ variable names to values provided to packer. For example:
 }
 ```
 - `os_name` - *string* - The operating system name as determined by the plugin.
-This could be any of the following:
-    - centos
-    - debian
-    - macos
-    - redhat
-    - ubuntu
-    - windows
+This could be any of the following values:
+    - `centos`
+    - `debian`
+    - `macos`
+    - `redhat`
+    - `ubuntu`
+    - `windows`
 - `os_version` - *string* - The operating system version as determined by
 the plugin
 - `packer_template_path` - *string* - The path to the packer template that was
