@@ -40,20 +40,20 @@ const (
 	Windows OsCategory = "windows"
 )
 
-type FileType string
+type FileSource string
 
 const (
-	Unknown   FileType = ""
-	LocalFile FileType = "local_file"
-	HttpFile  FileType = "http_file"
-	HttpsFile FileType = "https_file"
+	Unknown      FileSource = ""
+	LocalStorage FileSource = "local_storage"
+	HttpHost     FileSource = "http_host"
+	HttpsHost    FileSource = "https_host"
 )
 
 type FileMeta struct {
-	Name         string   `json:"name"`
-	FoundAtPath  string   `json:"found_at_path"`
-	StoredAtPath string   `json:"stored_at_path"`
-	Type         FileType `json:"type"`
+	Name         string     `json:"name"`
+	FoundAtPath  string     `json:"found_at_path"`
+	StoredAtPath string     `json:"stored_at_path"`
+	Source       FileSource `json:"source"`
 }
 
 func (o FileMeta) DestinationDirPath(rootDirPath string) string {
@@ -334,11 +334,11 @@ func newFileMeta(filePathRaw []byte) FileMeta {
 	}
 
 	if strings.HasPrefix(filePath, httpFilePrefix) {
-		fm.Type = HttpFile
+		fm.Source = HttpHost
 	} else if strings.HasPrefix(filePath, httpsFilePrefix) {
-		fm.Type = HttpsFile
+		fm.Source = HttpsHost
 	} else {
-		fm.Type = LocalFile
+		fm.Source = LocalStorage
 	}
 
 	return fm
@@ -395,8 +395,8 @@ func createBreadcrumbs(rootDirPath string, manifest *Manifest, maxSaveSizeBytes 
 
 		destPath := path.Join(destDirPath, manifest.FoundFiles[i].StoredAtPath)
 
-		switch manifest.FoundFiles[i].Type {
-		case HttpFile, HttpsFile:
+		switch manifest.FoundFiles[i].Source {
+		case HttpHost, HttpsHost:
 			p, err := url.Parse(manifest.FoundFiles[i].FoundAtPath)
 			if err != nil {
 				return err
@@ -406,7 +406,7 @@ func createBreadcrumbs(rootDirPath string, manifest *Manifest, maxSaveSizeBytes 
 			if err != nil {
 				return err
 			}
-		case LocalFile:
+		case LocalStorage:
 			err := copyLocalFile(manifest.FoundFiles[i].FoundAtPath, destPath)
 			if err != nil {
 				return fmt.Errorf("failed to copy local file '%s' to '%s' - %s",
