@@ -84,6 +84,8 @@ your builds.
 The plugin will store the following metadata in the manifest file as a
 JSON blob:
 
+- `plugin_version` - *string* - The version of the breadcrumbs plugin used to
+generate the manifest
 - `git_revision` - *string* - The current git revision hash
 - `packer_build_name` - *string* - The name of the packer build
 (e.g., 'virtualbox-iso')

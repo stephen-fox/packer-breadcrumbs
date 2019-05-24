@@ -83,8 +83,8 @@ type PluginConfig struct {
 	projectDirPath string `mapstructure:"-"`
 }
 
-// TODO: Template version?
 type Manifest struct {
+	PluginVersion   string            `json:"plugin_version"`
 	GitRevision     string            `json:"git_revision"`
 	PackerBuildName string            `json:"packer_build_name"`
 	PackerBuildType string            `json:"packer_build_type"`
@@ -249,6 +249,7 @@ func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, 
 	}
 
 	manifest := &Manifest{
+		PluginVersion:   o.Version,
 		GitRevision:     gitRev,
 		PackerBuildName: o.config.PackerBuildName,
 		PackerBuildType: o.config.PackerBuilderType,
