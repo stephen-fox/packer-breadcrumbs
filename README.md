@@ -18,49 +18,6 @@ configuration parameter. For example, if you specify `.sh`, the plugin will
 find all instances of files ending in `.sh` in your template, and will attempt
 to copy them or download them (if they are http URLs) as breadcrumbs.
 
-#### Default metadata
-The plugin will store the following metadata in the manifest file by default:
-
-- `git_revision` - The current git revision hash
-- `packer_build_name` - The name of the packer build (e.g., 'virtualbox-iso')
-- `packer_build_type` - The packer build type (e.g., 'virtualbox-iso')
-- `packer_user_variables` - A map of user variable names to values provided to
-packer. For example:
-```json
-{
-    "packer_user_variables": {
-        "cloud_init": "false",
-        "version": "0.0.1"
-    }
-}
-```
-- `os_name` - The operating system name as determined by the plugin. This
-could be any of the following:
-    - centos
-    - debian
-    - macos
-    - redhat
-    - ubuntu
-    - windows
-- `os_version` - The operating system version as determined by the plugin
-- `packer_template_path` - The path to the packer template that was used to
-build the current image (this is relative to the manifest file)
-- `include_suffixes` - A list of file suffixes to include as originally
-configured in the packer template. For example:
-```json
-{
-   "include_suffixes": [
-       ".ks",
-       ".sh"
-   ]
-}
-```
-
-#### Default saved files
-By default, the plugin will only copy the packer template file. The plugin
-permits you to copy additional files, but you must explicitly specify which
-file types should be saved.
-
 ## Configuration
 Like other packer plugins, the plugin is configured in the packer template file
 file using a JSON blob.
@@ -107,6 +64,53 @@ a plugin configuration error when true
 configuration error when true
 - `debug_breadcrumbs` - boolean - Saves the breadcrumbs and reports the
 breadcrumbs directory as a plugin configuration error when true
+
+## Saved breadcrumbs data
+Breadcrumbs are build metadata and files that the plugin can save in
+your builds.
+
+#### Metadata
+The plugin will store the following metadata in the manifest file by default:
+
+- `git_revision` - The current git revision hash
+- `packer_build_name` - The name of the packer build (e.g., 'virtualbox-iso')
+- `packer_build_type` - The packer build type (e.g., 'virtualbox-iso')
+- `packer_user_variables` - A map of user variable names to values provided to
+packer. For example:
+```json
+{
+    "packer_user_variables": {
+        "cloud_init": "false",
+        "version": "0.0.1"
+    }
+}
+```
+- `os_name` - The operating system name as determined by the plugin. This
+could be any of the following:
+    - centos
+    - debian
+    - macos
+    - redhat
+    - ubuntu
+    - windows
+- `os_version` - The operating system version as determined by the plugin
+- `packer_template_path` - The path to the packer template that was used to
+build the current image (this is relative to the manifest file)
+- `include_suffixes` - A list of file suffixes to include as originally
+configured in the packer template. For example:
+```json
+{
+   "include_suffixes": [
+       ".ks",
+       ".sh"
+   ]
+}
+```
+
+#### Saved files
+By default, the plugin will only copy the packer template file. The plugin
+permits you to copy additional files, but you must explicitly specify which
+file types should be saved.
 
 ## Installation
 As of Packer version 1.4.1, you need to do the following:
