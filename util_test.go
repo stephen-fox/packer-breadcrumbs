@@ -64,7 +64,7 @@ func TestFilesWithSuffixRecursive(t *testing.T) {
 		"/path/to/file/centos/7/def-generic.ks",
 	}
 
-	results := filesWithSuffixRecursive([]byte(".ks"), positiveTestFileContents, []FileMeta{})
+	results, _ := filesWithSuffixRecursive([]byte(".ks"), positiveTestFileContents, []FileMeta{}, []int{})
 
 	if len(results) == 0 {
 		t.Fatalf("results is empty")
@@ -73,7 +73,7 @@ func TestFilesWithSuffixRecursive(t *testing.T) {
 	for i := range results {
 		if results[i].FoundAtPath != expected[i] {
 			t.Fatalf("result %d should have been '%s' - got '%s'",
-				i, expected[i], results[i])
+				i, expected[i], results[i].FoundAtPath)
 		}
 	}
 }
@@ -135,5 +135,55 @@ func TestGetVersionCentOS(t *testing.T) {
 	expected := "7.6.1810"
 	if version != expected {
 		t.Fatalf("version should of been %s - got %s", expected, version)
+	}
+}
+
+func TestResolvePackerVariables(t *testing.T) {
+	const example = "{{ user `abc` }}/{{ user `def` }}/{{ user `ghi` }}/ks.ks"
+
+	m := map[string]string{
+		"abc": "hello",
+		"def": "world",
+		"ghi": "something",
+	}
+
+	result := resolvePackerVariables(example, m)
+	if result.err != nil {
+		t.Fatalf(result.err.Error())
+	}
+
+	expected := "hello/world/something/ks.ks"
+	if result.str != expected {
+		t.Fatalf("expected '%s' - got '%s'", expected, result.str)
+	}
+}
+
+func TestResolvePackerSpecialVariable(t *testing.T) {
+	const ex = "        <up><wait><tab> text ks=http://{{ .HTTPIP }}:{{ .HTTPPort}}/ks.ks PACKER_SSH_PUBLIC_KEY=\"{{ .SSHPublicKey }}\"<enter>"
+
+	m := map[string]string{
+		"HTTPIP":       "abc",
+		"HTTPPort":     "def",
+		"SSHPublicKey": "junk",
+	}
+
+	r := resolvePackerVariables(ex, m)
+
+	if r.err != nil {
+		t.Fatalf(r.err.Error())
+	}
+}
+
+func TestMissingResolvePackerSpecialVariable(t *testing.T) {
+	const ex = "        <up><wait><tab> text ks=http://{{ .HTTPIP }}:{{ .HTTPPort}}/ks.ks PACKER_SSH_PUBLIC_KEY=\"{{ .SSHPublicKey }}\"<enter>"
+
+	r := resolvePackerVariables(ex, make(map[string]string))
+
+	if r.result != missingVar {
+		t.Fatalf("result should have been '%s'", missingVar)
+	}
+
+	if r.err == nil {
+		t.Fatalf("error should have been non-nil")
 	}
 }

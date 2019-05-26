@@ -212,6 +212,8 @@ will cause a build failure. To avoid this, make sure you place a valid scan
 delimiter immediately after any file suffixes (in this case, put a space
 immediately after `.sh`, or surround the URL with single quotes).
 
-#### Files found in packer templates are ignored if they contain `{` or `}`
-The current logic does not support resolving variables. If the plugin finds a
-file string that contains `{` or `}`, it will ignore the file.
+#### The plugin fails to find a file specified in packer variable(s)
+The current packer variable resolution logic is pretty basic. At the time of
+writing, the logic will attempt to find a file by its basename (e.g.,
+`{{ .HTTPIP }}:{{ .HTTPPort}}/ks.ks` would be `ks.ks`). The plugin will search
+the directory containing the packer template for the file.

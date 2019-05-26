@@ -24,7 +24,6 @@ import (
 const (
 	defaultPackerTemplateSizeBytes = 100000
 	defaultSaveFileSizeBytes       = 100000
-	defaultExcludeChars            = "{}"
 	jsonPrefix                     = ""
 	jsonIndent                     = "    "
 	httpFilePrefix                 = "http://"
@@ -48,6 +47,7 @@ type FileMeta struct {
 	FoundAtPath  string     `json:"found_at_path"`
 	StoredAtPath string     `json:"stored_at_path"`
 	Source       FileSource `json:"source"`
+	unresolved   bool       `json:"-"`
 }
 
 func (o FileMeta) DestinationDirPath(rootDirPath string) string {
@@ -233,7 +233,29 @@ func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, 
 	var foundFileMetas []FileMeta
 
 	for i := range o.config.IncludeSuffixes {
-		results := filesWithSuffixRecursive([]byte(o.config.IncludeSuffixes[i]), templateRaw, defaultExcludeChars, []FileMeta{})
+		results, unresolvedIndexes := filesWithSuffixRecursive([]byte(o.config.IncludeSuffixes[i]), templateRaw, []FileMeta{}, []int{})
+
+		for _, index := range unresolvedIndexes {
+			resolution := resolvePackerVariables(results[index].FoundAtPath, o.config.PackerUserVars)
+			switch resolution.result {
+			case unknownVarType:
+				return nil, resolution.err
+			case missingVar:
+				dir, name, err := trimVariableStringToFile(results[index].FoundAtPath)
+				if err != nil {
+					return nil, fmt.Errorf("failed to trim packer variable syntax - %s", err.Error())
+				}
+
+				filePath, err := findFileInDirRecursive(name, filepath.Join(o.config.projectDirPath, dir))
+				if err != nil {
+					return nil, fmt.Errorf("failed to lookup packer file found in unresolved variable string - %s", err.Error())
+				}
+
+				results[index] = newFileMeta(filePath)
+			default:
+				results[index] = newFileMeta(resolution.str)
+			}
+		}
 
 		foundFileMetas = append(foundFileMetas, results...)
 	}
@@ -285,19 +307,22 @@ func (o *Provisioner) Cancel() {
 	os.Exit(123)
 }
 
-func filesWithSuffixRecursive(suffix []byte, raw []byte, excludeChars string, results []FileMeta) []FileMeta {
-	result, endIndex, wasFound := fileWithSuffix(suffix, raw)
-	if wasFound {
-		if len(result) != len(suffix) && !bytes.ContainsAny(result, excludeChars) {
-			results = append(results, newFileMeta(result))
-		}
+func filesWithSuffixRecursive(suffix []byte, raw []byte, metas []FileMeta, unresolvedIndexes []int) ([]FileMeta, []int) {
+	resultRaw, endIndex, wasFound := fileWithSuffix(suffix, raw)
+	if wasFound && len(resultRaw) != len(suffix) {
+		result := string(resultRaw)
 
-		if len(raw) > 0 && endIndex < len(raw) {
-			return filesWithSuffixRecursive(suffix, raw[endIndex:], excludeChars, results)
+		if strings.ContainsAny(result, packerVariableDelims) {
+			unresolvedIndexes = append(unresolvedIndexes, len(metas))
+			metas = append(metas, newUnresolvedFileMeta(result))
+		} else {
+			metas = append(metas, newFileMeta(result))
 		}
+	} else if wasFound && endIndex < len(raw) {
+		return filesWithSuffixRecursive(suffix, raw[endIndex:], metas, unresolvedIndexes)
 	}
 
-	return results
+	return metas, unresolvedIndexes
 }
 
 func fileWithSuffix(suffix []byte, raw []byte) (result []byte, endDelimIndex int, wasFound bool) {
@@ -313,21 +338,76 @@ func fileWithSuffix(suffix []byte, raw []byte) (result []byte, endDelimIndex int
 		delim = raw[endDelimIndex]
 	}
 
-	start := bytes.LastIndexByte(raw[:suffixStartIndex], delim)
-	if start < 0 || start+1 > endDelimIndex {
+	startIndex := bytes.LastIndexByte(raw[:suffixStartIndex], delim)
+	if startIndex < 0 || startIndex+1 > endDelimIndex {
 		return nil, 0, false
 	}
 
-	return raw[start+1: endDelimIndex], endDelimIndex, true
+	endPackerVarIndex := bytes.Index(raw[startIndex:endDelimIndex], endPackerVariableBytes)
+	if endPackerVarIndex > 0 {
+		// TODO: Big assumption about line ending.
+		lineStartIndex := bytes.LastIndex(raw[:endDelimIndex], newLineBytes)
+		if lineStartIndex < 0 {
+			lineStartIndex = 0
+		}
+		varOpenIndex := bytes.Index(raw[lineStartIndex:endDelimIndex], startPackerVariableBytes)
+		if varOpenIndex >= 0 {
+			startIndex = lineStartIndex + varOpenIndex
+		}
+	} else {
+		// Increase start index by delim len.
+		startIndex++
+	}
+
+	return raw[startIndex:endDelimIndex], endDelimIndex, true
 }
 
-func newFileMeta(filePathRaw []byte) FileMeta {
-	filePath := string(filePathRaw)
+func findFileInDirRecursive(fileName string, dirPath string) (string, error) {
+	var result string
 
+	fn := func(fPath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
+			return nil
+		}
+
+		if filepath.Base(fPath) == fileName {
+			result, err = filepath.Rel(dirPath, fPath)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	err := filepath.Walk(dirPath, fn)
+	if err != nil {
+		return "", err
+	}
+
+	if len(result) == 0 {
+		return "", fmt.Errorf("failed to find file '%s' in '%s'", fileName, dirPath)
+	}
+
+	return result, nil
+}
+
+func newUnresolvedFileMeta(str string) FileMeta {
+	return FileMeta{
+		FoundAtPath: str,
+		unresolved:  true,
+	}
+}
+
+func newFileMeta(filePath string) FileMeta {
 	fm := FileMeta{
 		Name:         filepath.Base(filePath),
 		FoundAtPath:  filePath,
-		StoredAtPath: hashBytes(filePathRaw),
+		StoredAtPath: hashString(filePath),
 	}
 
 	if strings.HasPrefix(filePath, httpFilePrefix) {
