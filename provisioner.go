@@ -271,7 +271,7 @@ func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, 
 		PackerBuildName: o.config.PackerBuildName,
 		PackerBuildType: o.config.PackerBuilderType,
 		PackerUserVars:  o.config.PackerUserVars,
-		PackerTemplate:  hashString(path.Base(o.config.TemplatePath)),
+		PackerTemplate:  hashBytes([]byte(path.Base(o.config.TemplatePath))),
 		IncludeSuffixes: o.config.IncludeSuffixes,
 		FoundFiles:      foundFileMetas,
 		pTemplateRaw:    templateRaw,
@@ -407,7 +407,7 @@ func newFileMeta(filePath string) FileMeta {
 	fm := FileMeta{
 		Name:         filepath.Base(filePath),
 		FoundAtPath:  filePath,
-		StoredAtPath: hashString(filePath),
+		StoredAtPath: hashBytes([]byte(filePath)),
 	}
 
 	if strings.HasPrefix(filePath, httpFilePrefix) {
@@ -419,10 +419,6 @@ func newFileMeta(filePath string) FileMeta {
 	}
 
 	return fm
-}
-
-func hashString(s string) string {
-	return hashBytes([]byte(s))
 }
 
 func hashBytes(s []byte) string {
