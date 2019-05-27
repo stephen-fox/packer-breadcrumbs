@@ -484,7 +484,7 @@ func createBreadcrumbs(rootDirPath string, manifest *Manifest, maxSaveSizeBytes 
 				return err
 			}
 		case LocalStorage:
-			err := copyLocalFile(manifest.FoundFiles[i].FoundAtPath, destPath)
+			err := copyLocalFile(manifest.FoundFiles[i].FoundAtPath, destPath, maxSaveSizeBytes)
 			if err != nil {
 				return fmt.Errorf("failed to copy local file '%s' to '%s' - %s",
 					manifest.FoundFiles[i].FoundAtPath, destPath, err.Error())
@@ -525,7 +525,7 @@ func getHttpFile(p *url.URL, destPath string, maxSizeBytes int64, timeout time.D
 	case nil:
 		break
 	case io.EOF:
-		return fmt.Errorf("http file '%s' exceeds maximum size of %d byte",
+		return fmt.Errorf("http file '%s' exceeds maximum size of %d byte(s)",
 			p.String(), maxSizeBytes)
 	default:
 		return err
@@ -534,7 +534,7 @@ func getHttpFile(p *url.URL, destPath string, maxSizeBytes int64, timeout time.D
 	return nil
 }
 
-func copyLocalFile(sourcePath string, destPath string) error {
+func copyLocalFile(sourcePath string, destPath string, maxSizeBytes int64) error {
 	dest, err := os.OpenFile(destPath, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
@@ -547,8 +547,16 @@ func copyLocalFile(sourcePath string, destPath string) error {
 	}
 	defer source.Close()
 
-	_, err = io.Copy(dest, source)
-	if err != nil {
+	sourceLimiter := io.LimitReader(source, maxSizeBytes)
+
+	_, err = io.Copy(dest, sourceLimiter)
+	switch err {
+	case nil:
+		break
+	case io.EOF:
+		return fmt.Errorf("local file '%s' exceeds maximum size of %d byte(s)",
+			sourcePath, maxSizeBytes)
+	default:
 		return err
 	}
 
