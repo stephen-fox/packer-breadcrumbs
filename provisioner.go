@@ -221,7 +221,7 @@ func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, 
 	}
 
 	if info.Size() > o.config.TemplateSizeBytes {
-		return nil, fmt.Errorf("packer template file '%s' size exceedes maximum size of %d",
+		return nil, fmt.Errorf("packer template file '%s' size exceedes maximum size of %d byte(s)",
 			o.config.TemplatePath, o.config.TemplateSizeBytes)
 	}
 
