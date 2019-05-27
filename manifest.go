@@ -113,16 +113,17 @@ func newManifest(config *PluginConfig, optionalFields OptionalManifestFields) (*
 
 func filesWithSuffixRecursive(suffix []byte, raw []byte, metas []FileMeta, unresolvedIndexes []int) ([]FileMeta, []int) {
 	resultRaw, endIndex, wasFound := fileWithSuffix(suffix, raw)
-	if wasFound && len(resultRaw) != len(suffix) {
-		result := string(resultRaw)
-
-		if strings.ContainsAny(result, packerVariableDelims) {
-			unresolvedIndexes = append(unresolvedIndexes, len(metas))
-			metas = append(metas, newUnresolvedFileMeta(result))
-		} else {
-			metas = append(metas, newFileMeta(result))
+	if wasFound {
+		if len(resultRaw) != len(suffix) {
+			result := string(resultRaw)
+			if strings.ContainsAny(result, packerVariableDelims) {
+				unresolvedIndexes = append(unresolvedIndexes, len(metas))
+				metas = append(metas, newUnresolvedFileMeta(result))
+			} else {
+				metas = append(metas, newFileMeta(result))
+			}
 		}
-	} else if wasFound && endIndex < len(raw) {
+
 		return filesWithSuffixRecursive(suffix, raw[endIndex:], metas, unresolvedIndexes)
 	}
 
