@@ -48,6 +48,16 @@ var (
       "type": "breadcrumbs"
       "abc": "abc-generic.ks",
     }
+    {
+      "type": "shell",
+      "expect_disconnect": "true",
+      "execute_command": "{{.Vars}} '{{.Path}}'",
+      "scripts": [
+        "scripts/install-basic-utils.sh",
+        "scripts/install-cloud-init.sh",
+        "scripts/cleanup.sh"
+      ]
+    },
   ],
   "post-processors": [
     "ova-forge"
@@ -93,6 +103,39 @@ func TestFileWithSuffix(t *testing.T) {
 	expectedIndex := 139
 	if endIndex != expectedIndex {
 		t.Fatalf("index should have been %d - got %d", expectedIndex, endIndex)
+	}
+}
+
+func TestFilesWithSuffixRecursiveMultipleSuffixes(t *testing.T) {
+	suffixes := []string{
+		".ks",
+		".sh",
+	}
+
+	expected := []string{
+		"https://cool.com/centos/7/packer-generic.ks",
+		"abc-generic.ks",
+		"/path/to/file/centos/7/def-generic.ks",
+		"scripts/install-basic-utils.sh",
+		"scripts/install-cloud-init.sh",
+		"scripts/cleanup.sh",
+	}
+
+	var results []FileMeta
+
+	for _, s := range suffixes {
+		results, _ = filesWithSuffixRecursive([]byte(s), positiveTestFileContents, results, []int{})
+	}
+
+	if len(results) == 0 {
+		t.Fatalf("results is empty")
+	}
+
+	for i := range results {
+		if results[i].FoundAtPath != expected[i] {
+			t.Fatalf("result %d should have been '%s' - got '%s'",
+				i, expected[i], results[i].FoundAtPath)
+		}
 	}
 }
 
