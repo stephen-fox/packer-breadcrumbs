@@ -18,7 +18,9 @@ func main() {
 	}
 
 	server.RegisterProvisioner(&breadcrumbs.Provisioner{
-		Version: version,
+		Config: breadcrumbs.PluginConfig{
+			PluginVersion: version,
+		},
 	})
 
 	server.Serve()

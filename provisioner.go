@@ -1,8 +1,6 @@
 package breadcrumbs
 
 import (
-	"bytes"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -74,72 +71,47 @@ type PluginConfig struct {
 	DebugManifest     bool     `mapstructure:"debug_manifest"`
 	DebugBreadcrumbs  bool     `mapstructure:"debug_breadcrumbs"`
 
-	projectDirPath string `mapstructure:"-"`
-}
-
-type Manifest struct {
-	PluginVersion   string            `json:"plugin_version"`
-	GitRevision     string            `json:"git_revision"`
-	PackerBuildName string            `json:"packer_build_name"`
-	PackerBuildType string            `json:"packer_build_type"`
-	PackerUserVars  map[string]string `json:"packer_user_variables"`
-	OSName          string            `json:"os_name"`
-	OSVersion       string            `json:"os_version"`
-	IncludeSuffixes []string          `json:"include_suffixes"`
-	PackerTemplate  string            `json:"packer_template_path"`
-	FoundFiles      []FileMeta        `json:"found_files"`
-	pTemplateRaw    []byte            `json:"-"`
-}
-
-func (o *Manifest) ToJson() ([]byte, error) {
-	raw, err := json.MarshalIndent(o, jsonPrefix, jsonIndent)
-	if err != nil {
-		return nil, err
-	}
-
-	raw = append(raw, '\n')
-
-	return raw, nil
+	ProjectDirPath string `mapstructure:"-"`
+	PluginVersion  string `mapstructure:"-"`
 }
 
 type Provisioner struct {
-	Version string
-	config  PluginConfig
+	Config PluginConfig
 }
 
 func (o *Provisioner) Prepare(rawConfigs ...interface{}) error {
 	// TODO: Interpolate user variables.
-	err := config.Decode(&o.config, nil, rawConfigs...)
+	err := config.Decode(&o.Config, nil, rawConfigs...)
 	if err != nil {
 		return err
 	}
 
-	if len(strings.TrimSpace(o.config.TemplatePath)) == 0 {
+	if len(strings.TrimSpace(o.Config.TemplatePath)) == 0 {
 		return fmt.Errorf("failed to get packer template path")
 	}
 
-	o.config.projectDirPath = filepath.Dir(o.config.TemplatePath)
+	o.Config.ProjectDirPath = filepath.Dir(o.Config.TemplatePath)
 
-	if len(strings.TrimSpace(o.config.UploadDirPath)) == 0 {
-		o.config.UploadDirPath = "/"
+	if len(strings.TrimSpace(o.Config.UploadDirPath)) == 0 {
+		o.Config.UploadDirPath = "/"
 	}
 
-	if o.config.TemplateSizeBytes == 0 {
-		o.config.TemplateSizeBytes = defaultPackerTemplateSizeBytes
+	if o.Config.TemplateSizeBytes == 0 {
+		o.Config.TemplateSizeBytes = defaultPackerTemplateSizeBytes
 	}
 
-	if o.config.SaveFileSizeBytes == 0 {
-		o.config.SaveFileSizeBytes = defaultSaveFileSizeBytes
+	if o.Config.SaveFileSizeBytes == 0 {
+		o.Config.SaveFileSizeBytes = defaultSaveFileSizeBytes
 	}
 
-	if o.config.DebugConfig {
-		debugRaw, _ := json.MarshalIndent(o.config, jsonPrefix, jsonIndent)
+	if o.Config.DebugConfig {
+		debugRaw, _ := json.MarshalIndent(o.Config, jsonPrefix, jsonIndent)
 
 		return fmt.Errorf("%s", debugRaw)
 	}
 
-	if o.config.DebugManifest {
-		manifest, err := o.newManifest(nil)
+	if o.Config.DebugManifest {
+		manifest, err := newManifest(&o.Config, OptionalManifestFields{})
 		if err != nil {
 			return err
 		}
@@ -152,59 +124,81 @@ func (o *Provisioner) Prepare(rawConfigs ...interface{}) error {
 		return fmt.Errorf("%s", out)
 	}
 
-	if o.config.DebugBreadcrumbs {
-		manifest, err := o.newManifest(nil)
+	if o.Config.DebugBreadcrumbs {
+		manifest, err := newManifest(&o.Config, OptionalManifestFields{})
 		if err != nil {
 			return err
 		}
 
-		if len(strings.TrimSpace(o.config.ArtifactsDirPath)) == 0 {
-			o.config.ArtifactsDirPath, err = ioutil.TempDir("", "breadcrumbs-")
+		if len(strings.TrimSpace(o.Config.ArtifactsDirPath)) == 0 {
+			o.Config.ArtifactsDirPath, err = ioutil.TempDir("", "breadcrumbs-")
 			if err != nil {
 				return err
 			}
 		}
 
-		err = createBreadcrumbs(o.config.ArtifactsDirPath, manifest, o.config.SaveFileSizeBytes)
+		err = createBreadcrumbs(o.Config.ArtifactsDirPath, manifest, o.Config.SaveFileSizeBytes)
 		if err != nil {
 			return err
 		}
 
-		return fmt.Errorf("created breadcrumbs at '%s'", o.config.ArtifactsDirPath)
+		return fmt.Errorf("created breadcrumbs at '%s'", o.Config.ArtifactsDirPath)
 	}
 
 	return nil
 }
 
 func (o *Provisioner) Provision(ui packer.Ui, communicator packer.Communicator) error {
-	manifest, err := o.newManifest(communicator)
+	var optionalFields OptionalManifestFields
+
+	switch getOSCategory(communicator) {
+	case unix:
+		var ok bool
+		optionalFields.OSName, optionalFields.OSVersion, ok = isRedHat(communicator)
+		if ok {
+			break
+		}
+		optionalFields.OSName, optionalFields.OSVersion, ok = isDebian(communicator)
+		if ok {
+			break
+		}
+		optionalFields.OSName, optionalFields.OSVersion, ok = isMacos(communicator)
+		if ok {
+			break
+		}
+	case windows:
+		optionalFields.OSName = "windows"
+		optionalFields.OSVersion = windowsVersion(communicator)
+	}
+
+	manifest, err := newManifest(&o.Config, optionalFields)
 	if err != nil {
 		return err
 	}
 
-	if len(strings.TrimSpace(o.config.ArtifactsDirPath)) == 0 {
+	if len(strings.TrimSpace(o.Config.ArtifactsDirPath)) == 0 {
 		temp, err := ioutil.TempDir("", "breadcrumbs-")
 		if err != nil {
 			return err
 		}
 
-		o.config.ArtifactsDirPath = filepath.Join(temp, "breadcrumbs")
+		o.Config.ArtifactsDirPath = filepath.Join(temp, "breadcrumbs")
 
-		err = os.MkdirAll(o.config.ArtifactsDirPath, 0700)
+		err = os.MkdirAll(o.Config.ArtifactsDirPath, 0700)
 		if err != nil {
 			return err
 		}
-		defer os.RemoveAll(o.config.ArtifactsDirPath)
+		defer os.RemoveAll(o.Config.ArtifactsDirPath)
 	}
 
-	err = createBreadcrumbs(o.config.ArtifactsDirPath, manifest, o.config.SaveFileSizeBytes)
+	err = createBreadcrumbs(o.Config.ArtifactsDirPath, manifest, o.Config.SaveFileSizeBytes)
 	if err != nil {
 		return err
 	}
 
-	ui.Say(fmt.Sprintf("Uploading breadcrumbs to '%s'...", o.config.UploadDirPath))
+	ui.Say(fmt.Sprintf("Uploading breadcrumbs to '%s'...", o.Config.UploadDirPath))
 
-	err = communicator.UploadDir("/", o.config.ArtifactsDirPath, nil)
+	err = communicator.UploadDir("/", o.Config.ArtifactsDirPath, nil)
 	if err != nil {
 		return err
 	}
@@ -214,228 +208,9 @@ func (o *Provisioner) Provision(ui packer.Ui, communicator packer.Communicator) 
 	return nil
 }
 
-func (o *Provisioner) newManifest(communicator packer.Communicator) (*Manifest, error) {
-	info, err := os.Stat(o.config.TemplatePath)
-	if err != nil {
-		return nil, err
-	}
-
-	if info.Size() > o.config.TemplateSizeBytes {
-		return nil, fmt.Errorf("packer template file '%s' size exceedes maximum size of %d byte(s)",
-			o.config.TemplatePath, o.config.TemplateSizeBytes)
-	}
-
-	templateRaw, err := ioutil.ReadFile(o.config.TemplatePath)
-	if err != nil {
-		return nil, err
-	}
-
-	var foundFileMetas []FileMeta
-
-	for i := range o.config.IncludeSuffixes {
-		results, unresolvedIndexes := filesWithSuffixRecursive([]byte(o.config.IncludeSuffixes[i]), templateRaw, []FileMeta{}, []int{})
-
-		for _, index := range unresolvedIndexes {
-			resolution := resolvePackerVariables(results[index].FoundAtPath, o.config.PackerUserVars)
-			switch resolution.result {
-			case unknownVarType:
-				return nil, resolution.err
-			case missingVar:
-				dir, name, err := trimVariableStringToFile(results[index].FoundAtPath)
-				if err != nil {
-					return nil, fmt.Errorf("failed to trim packer variable syntax - %s", err.Error())
-				}
-
-				filePath, err := findFileInDirRecursive(name, filepath.Join(o.config.projectDirPath, dir))
-				if err != nil {
-					return nil, fmt.Errorf("failed to lookup packer file found in unresolved variable string - %s", err.Error())
-				}
-
-				results[index] = newFileMeta(filePath)
-			default:
-				results[index] = newFileMeta(resolution.str)
-			}
-		}
-
-		foundFileMetas = append(foundFileMetas, results...)
-	}
-
-	gitRev, err := currentGitRevision(o.config.projectDirPath)
-	if err != nil {
-		return nil, err
-	}
-
-	manifest := &Manifest{
-		PluginVersion:   o.Version,
-		GitRevision:     gitRev,
-		PackerBuildName: o.config.PackerBuildName,
-		PackerBuildType: o.config.PackerBuilderType,
-		PackerUserVars:  o.config.PackerUserVars,
-		PackerTemplate:  hashBytes([]byte(path.Base(o.config.TemplatePath))),
-		IncludeSuffixes: o.config.IncludeSuffixes,
-		FoundFiles:      foundFileMetas,
-		pTemplateRaw:    templateRaw,
-	}
-
-	if communicator != nil {
-		switch getOSCategory(communicator) {
-		case unix:
-			var ok bool
-			manifest.OSName, manifest.OSVersion, ok = isRedHat(communicator)
-			if ok {
-				break
-			}
-			manifest.OSName, manifest.OSVersion, ok = isDebian(communicator)
-			if ok {
-				break
-			}
-			manifest.OSName, manifest.OSVersion, ok = isMacos(communicator)
-			if ok {
-				break
-			}
-		case windows:
-			manifest.OSName = "windows"
-			manifest.OSVersion = windowsVersion(communicator)
-		}
-	}
-
-	return manifest, nil
-}
-
 func (o *Provisioner) Cancel() {
 	// TODO: Something a little more elegant than this.
 	os.Exit(123)
-}
-
-func filesWithSuffixRecursive(suffix []byte, raw []byte, metas []FileMeta, unresolvedIndexes []int) ([]FileMeta, []int) {
-	resultRaw, endIndex, wasFound := fileWithSuffix(suffix, raw)
-	if wasFound && len(resultRaw) != len(suffix) {
-		result := string(resultRaw)
-
-		if strings.ContainsAny(result, packerVariableDelims) {
-			unresolvedIndexes = append(unresolvedIndexes, len(metas))
-			metas = append(metas, newUnresolvedFileMeta(result))
-		} else {
-			metas = append(metas, newFileMeta(result))
-		}
-	} else if wasFound && endIndex < len(raw) {
-		return filesWithSuffixRecursive(suffix, raw[endIndex:], metas, unresolvedIndexes)
-	}
-
-	return metas, unresolvedIndexes
-}
-
-func fileWithSuffix(suffix []byte, raw []byte) (result []byte, endDelimIndex int, wasFound bool) {
-	suffixStartIndex := bytes.Index(raw, suffix)
-	if suffixStartIndex < 0 {
-		return nil, 0, false
-	}
-
-	endDelimIndex = suffixStartIndex + len(suffix)
-
-	delim := doubleQuoteChar
-	if len(raw) - 1 >= endDelimIndex && bytes.ContainsAny([]byte{raw[endDelimIndex]}, possibleDelims) {
-		delim = raw[endDelimIndex]
-	}
-
-	startIndex := bytes.LastIndexByte(raw[:suffixStartIndex], delim)
-	if startIndex < 0 || startIndex+1 > endDelimIndex {
-		return nil, 0, false
-	}
-
-	endPackerVarIndex := bytes.Index(raw[startIndex:endDelimIndex], endPackerVariableBytes)
-	if endPackerVarIndex > 0 {
-		// TODO: Big assumption about line ending.
-		lineStartIndex := bytes.LastIndex(raw[:endDelimIndex], newLineBytes)
-		if lineStartIndex < 0 {
-			lineStartIndex = 0
-		}
-		varOpenIndex := bytes.Index(raw[lineStartIndex:endDelimIndex], startPackerVariableBytes)
-		if varOpenIndex >= 0 {
-			startIndex = lineStartIndex + varOpenIndex
-		}
-	} else {
-		// Increase start index by delim len.
-		startIndex++
-	}
-
-	return raw[startIndex:endDelimIndex], endDelimIndex, true
-}
-
-func findFileInDirRecursive(fileName string, dirPath string) (string, error) {
-	var result string
-
-	fn := func(fPath string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			return nil
-		}
-
-		if filepath.Base(fPath) == fileName {
-			result, err = filepath.Rel(dirPath, fPath)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
-	}
-
-	err := filepath.Walk(dirPath, fn)
-	if err != nil {
-		return "", err
-	}
-
-	if len(result) == 0 {
-		return "", fmt.Errorf("failed to find file '%s' in '%s'", fileName, dirPath)
-	}
-
-	return result, nil
-}
-
-func newUnresolvedFileMeta(str string) FileMeta {
-	return FileMeta{
-		FoundAtPath: str,
-		unresolved:  true,
-	}
-}
-
-func newFileMeta(filePath string) FileMeta {
-	fm := FileMeta{
-		Name:         filepath.Base(filePath),
-		FoundAtPath:  filePath,
-		StoredAtPath: hashBytes([]byte(filePath)),
-	}
-
-	if strings.HasPrefix(filePath, httpFilePrefix) {
-		fm.Source = HttpHost
-	} else if strings.HasPrefix(filePath, httpsFilePrefix) {
-		fm.Source = HttpsHost
-	} else {
-		fm.Source = LocalStorage
-	}
-
-	return fm
-}
-
-func hashBytes(s []byte) string {
-	return fmt.Sprintf("%x", sha256.Sum256(s))
-}
-
-func currentGitRevision(projectDirPath string) (string, error) {
-	git := exec.Command("git", "rev-parse", "HEAD")
-	git.Dir = projectDirPath
-
-	raw, err := git.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("failed to get current git revision - %s - output: '%s'",
-			err.Error(), raw)
-	}
-
-	return string(bytes.TrimSpace(raw)), nil
 }
 
 func createBreadcrumbs(rootDirPath string, manifest *Manifest, maxSaveSizeBytes int64) error {
