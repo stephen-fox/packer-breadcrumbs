@@ -479,12 +479,12 @@ func createBreadcrumbs(rootDirPath string, manifest *Manifest, maxSaveSizeBytes 
 				return err
 			}
 
-			err = getHttpFile(p, destPath, maxSaveSizeBytes, 30 * time.Second)
+			err = getHttpFile(p, destPath, 0600, maxSaveSizeBytes, 30 * time.Second)
 			if err != nil {
 				return err
 			}
 		case LocalStorage:
-			err := copyLocalFile(manifest.FoundFiles[i].FoundAtPath, destPath, maxSaveSizeBytes)
+			err := copyLocalFile(manifest.FoundFiles[i].FoundAtPath, destPath, 0600, maxSaveSizeBytes)
 			if err != nil {
 				return fmt.Errorf("failed to copy local file '%s' to '%s' - %s",
 					manifest.FoundFiles[i].FoundAtPath, destPath, err.Error())
@@ -497,8 +497,8 @@ func createBreadcrumbs(rootDirPath string, manifest *Manifest, maxSaveSizeBytes 
 	return nil
 }
 
-func getHttpFile(p *url.URL, destPath string, maxSizeBytes int64, timeout time.Duration) error {
-	dest, err := os.OpenFile(destPath, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0600)
+func getHttpFile(p *url.URL, destPath string, mode os.FileMode, maxSizeBytes int64, timeout time.Duration) error {
+	dest, err := os.OpenFile(destPath, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, mode)
 	if err != nil {
 		return err
 	}
@@ -534,8 +534,8 @@ func getHttpFile(p *url.URL, destPath string, maxSizeBytes int64, timeout time.D
 	return nil
 }
 
-func copyLocalFile(sourcePath string, destPath string, maxSizeBytes int64) error {
-	dest, err := os.OpenFile(destPath, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0600)
+func copyLocalFile(sourcePath string, destPath string, mode os.FileMode, maxSizeBytes int64) error {
+	dest, err := os.OpenFile(destPath, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, mode)
 	if err != nil {
 		return err
 	}
