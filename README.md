@@ -217,3 +217,11 @@ The current packer variable resolution logic is pretty basic. At the time of
 writing, the logic will attempt to find a file by its basename (e.g.,
 `{{ .HTTPIP }}:{{ .HTTPPort}}/ks.ks` would be `ks.ks`). The plugin will search
 the directory containing the packer template for the file.
+
+## Building from source
+You can use `go build cmd/packer-breadcrumbs/main.go`, or you can use the
+included bash scripts (note: theses scripts expect an environment variable
+named `VERSION` to be set):
+
+- `build.sh` - A simple wrapper around 'go build'
+- `buildall.sh` - Build the plugin for all supported OSes
