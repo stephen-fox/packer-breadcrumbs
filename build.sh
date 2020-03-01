@@ -22,4 +22,3 @@ then
 fi
 
 go build -ldflags "-X main.version=${VERSION}" -o "${buildDir}/${filename}" cmd/packer-breadcrumbs/main.go
-
