@@ -4,3 +4,5 @@ require (
 	github.com/hashicorp/packer v1.3.5
 	github.com/mitchellh/mapstructure v1.1.2 // indirect
 )
+
+go 1.13
