@@ -219,9 +219,13 @@ writing, the logic will attempt to find a file by its basename (e.g.,
 the directory containing the packer template for the file.
 
 ## Building from source
-You can use `go build cmd/packer-breadcrumbs/main.go`, or you can use the
-included bash scripts (note: theses scripts expect an environment variable
-named `VERSION` to be set):
+You can use any of the following methods to build the plugin:
 
-- `build.sh` - A simple wrapper around 'go build'
-- `buildall.sh` - Build the plugin for all supported OSes
+- `go build cmd/packer-breadcrumbs/main.go` - Build the plugin directly with
+the go CLI
+- `build.sh` - A simple wrapper around 'go build' that saves build artifacts
+to `build/` and sets a version number in the compiled binary. This script
+expects a version to be provided by setting an environment variable
+named `VERSION`
+- `buildall.sh` - Build the plugin for all supported OSes by wrapping the
+`build.sh` script
