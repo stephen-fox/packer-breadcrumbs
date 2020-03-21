@@ -188,7 +188,7 @@ As of Packer version 1.4.1, you need to do the following:
 `.packer.d/plugins/`
 3. Move the plugin into the directory and make sure it is named
 `packer-provisioner-breadcrumbs`
-4. Make sure it is set as executable (on *nix systems)
+4. Make sure it is set as executable (on \*nix systems)
 
 ## Known issues
 There are some known issues which will (hopefully) be fixed or improved in
