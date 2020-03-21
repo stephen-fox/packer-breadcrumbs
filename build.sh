@@ -20,5 +20,9 @@ if [[ ! -z "${GOARCH+x}" ]]
 then
     filename="${filename}-${GOARCH}"
 fi
+if [[ ! -z "${GOOS+x}" ]] && [[ "${GOOS}" == "windows" ]]
+then
+    filename="${filename}.exe"
+fi
 
 go build -ldflags "-X main.version=${VERSION}" -o "${buildDir}/${filename}" cmd/packer-breadcrumbs/main.go
