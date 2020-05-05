@@ -2,6 +2,7 @@ package breadcrumbs
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"unicode"
 
@@ -20,14 +21,14 @@ func getOSCategory(c packer.Communicator) osCategory {
 		Command: "ls",
 	}
 
-	err := c.Start(ls)
+	err := c.Start(context.TODO(), ls)
 	if err != nil {
 		return osCategory("unknown")
 	}
 
 	ls.Wait()
 
-	if ls.ExitStatus == 0 {
+	if ls.ExitStatus() == 0 {
 		return unix
 	}
 
@@ -41,14 +42,14 @@ func isRedHat(c packer.Communicator) (string, string, bool) {
 		Stdout:  stdout,
 	}
 
-	err := c.Start(cat)
+	err := c.Start(context.TODO(), cat)
 	if err != nil {
 		return "", "", false
 	}
 
 	cat.Wait()
 
-	if cat.ExitStatus != 0 {
+	if cat.ExitStatus() != 0 {
 		return "", "", false
 	}
 
@@ -68,14 +69,14 @@ func isDebian(c packer.Communicator) (string, string, bool) {
 		Stdout:  stdout,
 	}
 
-	err := c.Start(cat)
+	err := c.Start(context.TODO(), cat)
 	if err != nil {
 		return "", "", false
 	}
 
 	cat.Wait()
 
-	if cat.ExitStatus != 0 {
+	if cat.ExitStatus() != 0 {
 		return "", "", false
 	}
 
@@ -95,14 +96,14 @@ func isMacos(c packer.Communicator) (string, string, bool) {
 		Stdout:  stdout,
 	}
 
-	err := c.Start(swVers)
+	err := c.Start(context.TODO(), swVers)
 	if err != nil {
 		return "", "", false
 	}
 
 	swVers.Wait()
 
-	if swVers.ExitStatus != 0 {
+	if swVers.ExitStatus() != 0 {
 		return "", "", false
 	}
 
@@ -116,7 +117,7 @@ func windowsVersion(c packer.Communicator) string {
 		Stdout:  stdout,
 	}
 
-	err := c.Start(ver)
+	err := c.Start(context.TODO(), ver)
 	if err != nil {
 		return ""
 	}

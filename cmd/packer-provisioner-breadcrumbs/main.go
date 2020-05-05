@@ -17,11 +17,14 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	server.RegisterProvisioner(&breadcrumbs.Provisioner{
+	err = server.RegisterProvisioner(&breadcrumbs.Provisioner{
 		Config: breadcrumbs.PluginConfig{
 			PluginVersion: version,
 		},
 	})
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 
 	server.Serve()
 }
