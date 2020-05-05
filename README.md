@@ -221,8 +221,8 @@ the directory containing the packer template for the file.
 ## Building from source
 You can use any of the following methods to build the plugin:
 
-- `go build cmd/packer-breadcrumbs/main.go` - Build the plugin directly with
-the go CLI
+- `go build cmd/packer-provisioner-breadcrumbs/main.go` - Build the plugin
+directly withthe go CLI
 - `build.sh` - A simple wrapper around 'go build' that saves build artifacts
 to `build/` and sets a version number in the compiled binary. This script
 expects a version to be provided by setting an environment variable
