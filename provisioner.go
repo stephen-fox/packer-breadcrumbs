@@ -1,6 +1,7 @@
 package breadcrumbs
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/packer/common"
 	"github.com/hashicorp/packer/helper/config"
 	"github.com/hashicorp/packer/packer"
@@ -77,6 +79,10 @@ type PluginConfig struct {
 
 type Provisioner struct {
 	Config PluginConfig
+}
+
+func (o *Provisioner) ConfigSpec() hcldec.ObjectSpec {
+	return nil
 }
 
 func (o *Provisioner) Prepare(rawConfigs ...interface{}) error {
@@ -148,7 +154,7 @@ func (o *Provisioner) Prepare(rawConfigs ...interface{}) error {
 	return nil
 }
 
-func (o *Provisioner) Provision(ui packer.Ui, communicator packer.Communicator) error {
+func (o *Provisioner) Provision(_ context.Context, ui packer.Ui, communicator packer.Communicator, _ map[string]interface{}) error {
 	var optionalFields OptionalManifestFields
 
 	switch getOSCategory(communicator) {
