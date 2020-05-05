@@ -236,7 +236,7 @@ func currentGitRevision(projectDirPath string) (string, error) {
 
 	raw, err := git.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("failed to get current git revision - %s - output: '%s'",
+		return "", fmt.Errorf("failed to get current git revision; verify that this is a git repository, and that at least one commit has been created - %s - output: '%s'",
 			err.Error(), raw)
 	}
 
